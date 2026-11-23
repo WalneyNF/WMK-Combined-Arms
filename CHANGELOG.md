@@ -1,5 +1,19 @@
 # Histórico de alterações
 
+## [0.2.1-game] — 2026-11-23 (correções do jogo principal)
+
+- Soldado: correção visual da altura de spawn e da altura no deslocamento.
+- Submarino: câmera submersa, novo ponto de spawn e torpedos funcionando abaixo de -4 m.
+- AAP: identidade de artilharia autopropulsada, chassi, mira superior pela tecla V e projéteis com gravidade/explosão.
+- APC: documentação diferencia transporte blindado e AAP; embarque de passageiros permanece pendente.
+- Correções de entradas e versão exibida, documentação HTML própria e testes de regressão estática.
+
+## [0.3.8-lab] — 2026-11-23 (recursos experimentais do laboratório)
+
+- Waypoints cíclicos em JSON e visualização das rotas dos bots.
+- Editor Map Builder 3D com gizmos de mover, rotacionar e escalar, clonagem e JSON.
+- O editor 3D ainda requer verificação visual no navegador.
+
 ## [0.3.7-lab] — 2026-11-23 (editor de mapas experimental)
 
 - Novo modo Construções no Mission Studio: edificação, muro, caixa, torre e barreira.
