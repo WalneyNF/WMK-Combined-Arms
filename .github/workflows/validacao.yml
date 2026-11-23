@@ -14,3 +14,5 @@ jobs:
           node-version: '22'
       - name: Verificar projeto
         run: python3 scripts/check_project.py
+      - name: Testar regras de colisão e desembarque
+        run: node --test tests/movement.test.mjs
