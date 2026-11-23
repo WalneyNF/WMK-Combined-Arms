@@ -20,13 +20,13 @@ jobs:
         if: github.event_name == 'push'
         run: |
           mkdir -p dist
-          zip -q -r dist/WMK-Combined-Arms-v0.3.7.zip . -x '.git/*' 'dist/*' '.github/*'
-          unzip -tq dist/WMK-Combined-Arms-v0.3.7.zip
+          zip -q -r dist/WMK-Combined-Arms-Game-v0.2.1-Lab-v0.3.8.zip . -x '.git/*' 'dist/*' '.github/*'
+          unzip -tq dist/WMK-Combined-Arms-Game-v0.2.1-Lab-v0.3.8.zip
       - name: Publicar ZIP nos artefatos da execução
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: WMK-Combined-Arms-v0.3.7-ZIP
-          path: dist/WMK-Combined-Arms-v0.3.7.zip
+          name: WMK-Combined-Arms-Game-v0.2.1-Lab-v0.3.8-ZIP
+          path: dist/WMK-Combined-Arms-Game-v0.2.1-Lab-v0.3.8.zip
           retention-days: 30
           if-no-files-found: error
