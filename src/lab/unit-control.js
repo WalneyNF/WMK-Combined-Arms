@@ -140,6 +140,8 @@ function loadSnapshot(data){
   for(const required of ["soldier-001","tank-001","heli-001"])if(!seen.has(required))throw Error("Unidade obrigatória ausente");
   const items=[...entities.values()];for(const e of items){scene.remove(e.group);e.group.traverse(obj=>{if(obj.isMesh)obj.geometry.dispose()});}entities.clear();
   for(const u of updated)createEntity(u);
+  // Compatibilidade com saves da v0.3.0: adiciona a nova unidade se não existir.
+  if(!entities.has("soldier-002"))createEntity(defaults.find(u=>u.id==="soldier-002"));
   activeId=entities.has(data.activeId)&&entities.get(data.activeId).faction==="allies"?data.activeId:"soldier-001";
   lastSoldierId=entities.get(data.lastSoldierId)?.kind==="soldier"?data.lastSoldierId:"soldier-001";
   if(entities.get(activeId).kind==="soldier")lastSoldierId=activeId;
