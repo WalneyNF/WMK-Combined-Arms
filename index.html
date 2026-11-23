@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WMK Combined Arms — Operação Tempestade 3D</title>
+  <title>WMK Combined Arms v0.2.1 — Operação Tempestade 3D</title>
 
   <script type="importmap">
     {
@@ -842,7 +842,7 @@
         </div>
       </div>
       <div class="menu-footer">
-        <span>WMK Combined Arms · v0.2.0</span>
+        <span>WMK Combined Arms · v0.2.1</span>
         <span>12 hostis detectados</span>
         <span>Objetivo: 8 eliminações</span>
       </div>
@@ -2203,6 +2203,13 @@
     }
 
     function fireMissile() {
+      if(["artillery","apc","soldier","sub"].includes(player.type)){
+        showToast(player.type==="artillery"?"AAP · USE V E ATIRE COM O OBUSEIRO":
+          player.type==="apc"?"APC · METRALHADORA É A ARMA ATIVA":
+          player.type==="sub"?"SUBMARINO · DISPARO DE TORPEDO: ESPAÇO":
+          "SOLDADO · FUZIL: ESPAÇO");
+        return;
+      }
       if (player.missileCooldown > 0) {
         showToast("MÍSSIL RECARREGANDO");
         return;
