@@ -131,7 +131,7 @@ function validateUnit(u){
 function createEntity(raw){
   const d=validateUnit(raw);
   const group=d.kind==="soldier"?modelSoldier():d.kind==="tank"?modelTank():d.kind==="heli"?modelHeli():modelEnemy();
-  group.position.fromArray(d.position);group.rotation.y=d.yaw;scene.add(group);
+  group.position.fromArray(d.position);group.rotation.y=d.yaw;group.visible=d.health>0;scene.add(group);
   entities.set(d.id,{...d,group,aiTime:0});
 }
 for(const d of defaults)createEntity(d);
@@ -150,7 +150,8 @@ function loadSnapshot(data){
   for(const u of updated)createEntity(u);
   // Compatibilidade com saves da v0.3.0: adiciona a nova unidade se não existir.
   if(!entities.has("soldier-002"))createEntity(defaults.find(u=>u.id==="soldier-002"));
-  activeId=entities.has(data.activeId)&&entities.get(data.activeId).faction==="allies"?data.activeId:"soldier-001";
+  activeId=entities.get(data.activeId)?.faction==="allies"&&entities.get(data.activeId).health>0?data.activeId:
+    ([...entities.values()].find(e=>e.faction==="allies"&&e.health>0)?.id||"soldier-001");
   lastSoldierId=entities.get(data.lastSoldierId)?.kind==="soldier"?data.lastSoldierId:"soldier-001";
   if(entities.get(activeId).kind==="soldier")lastSoldierId=activeId;
   currentSeat=entities.get(activeId).kind==="soldier"?"foot":["driver","gunner","commander","pilot","door-gunner"].includes(data.currentSeat)?data.currentSeat:entities.get(activeId).kind==="tank"?"driver":"pilot";
@@ -434,7 +435,14 @@ function fire(){
 }
 function onDestroyed(target,owner){
   target.group.visible=false;
-  if(target.faction==="enemy"){missionKills++;addCombatLog(target.name+" neutralizado por "+(owner?.name||"desconhecido"))}
+  if(target.faction==="enemy"){
+    missionKills++;
+    addCombatLog(target.name+" neutralizado por "+(owner?.name||"desconhecido"));
+    if([...entities.values()].every(e=>e.faction!=="enemy"||e.health<=0)){
+      addCombatLog("MISSÃO DE TREINAMENTO CUMPRIDA");
+      notice("MISSÃO CUMPRIDA · TODOS OS ALVOS NEUTRALIZADOS");
+    }
+  }
   else addCombatLog("ALIADO PERDIDO · "+target.name);
   if(owner){owner.kills=(owner.kills||0)+1}
   if(target.kind==="tank"||target.kind==="heli"){
