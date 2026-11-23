@@ -6,6 +6,7 @@ import { COMBAT,canEngage,selectCombatTarget,applyDamage,calculateScore,assignSq
 import { hasLineOfSight } from "./navigation.mjs";
 import { FORMATIONS,formationDestination } from "./formation.mjs";
 import { validateMission,startMission,advanceMission,missionProgress,presetMission } from "./mission.mjs";
+import { validateRoster } from "./scenario.mjs";
 
 // WMK Unit Control Lab v0.3.0 — protótipo isolado, sem alterar o jogo principal.
 // Entidade, controle e assento são conceitos separados. O mundo nunca é reiniciado ao trocar.
@@ -149,24 +150,27 @@ for(const d of defaults)createEntity(d);
 function active(){return entities.get(activeId)}
 function notice(txt){$("notice").textContent=txt;toastTime=4}
 function isVehicle(e){return e?.kind==="tank"||e?.kind==="heli"}
-function person(){return entities.get(lastSoldierId)||entities.get("soldier-001")}
+function person(){return entities.get(lastSoldierId)||[...entities.values()].find(u=>u.kind==="soldier"&&u.faction==="allies")}
 function unitState(e){const {group,aiTime,jumpTime,navPath,navDestination,navStatus,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
-function snapshot(){return {schemaVersion:1,labVersion:"0.3.5",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],squadFormation,missionState,units:[...entities.values()].map(unitState)}}
+function snapshot(){return {schemaVersion:1,labVersion:"0.3.6",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],squadFormation,missionState,units:[...entities.values()].map(unitState)}}
 function loadSnapshot(data){
-  if(!data||data.schemaVersion!==1||!Array.isArray(data.units)||data.units.length<3||data.units.length>20)throw Error("Arquivo não é um save WMK válido");
+  if(!data||data.schemaVersion!==1||!Array.isArray(data.units)||data.units.length<1||data.units.length>40)throw Error("Arquivo não é um save WMK válido");
   const seen=new Set(),updated=data.units.map(x=>validateUnit(x));
   for(const u of updated){if(seen.has(u.id))throw Error("IDs duplicados");seen.add(u.id)}
-  for(const required of ["soldier-001","tank-001","heli-001"])if(!seen.has(required))throw Error("Unidade obrigatória ausente");
+  if(!updated.some(u=>u.kind==="soldier"&&u.faction==="allies"))throw Error("Batalha sem soldado aliado");
+  const legacy=!data.labVersion||["0.3.0","0.3.1","0.3.2","0.3.3","0.3.4","0.3.5"].includes(data.labVersion);
   const items=[...entities.values()];for(const e of items){scene.remove(e.group);e.group.traverse(obj=>{if(obj.isMesh)obj.geometry.dispose()});}entities.clear();
   for(const u of updated)createEntity(u);
   // Compatibilidade com saves da v0.3.0: adiciona a nova unidade se não existir.
-  if(!entities.has("soldier-002"))createEntity(defaults.find(u=>u.id==="soldier-002"));
-  // Compatibilidade: as patrulhas móveis chegaram na v0.3.4.
-  for(const enemyId of ["enemy-soldier-001","enemy-soldier-002"])
-    if(!entities.has(enemyId))createEntity(defaults.find(u=>u.id===enemyId));
+  if(legacy){
+    if(!entities.has("soldier-002"))createEntity(defaults.find(u=>u.id==="soldier-002"));
+    for(const enemyId of ["enemy-soldier-001","enemy-soldier-002"])
+      if(!entities.has(enemyId))createEntity(defaults.find(u=>u.id===enemyId));
+  }
   activeId=entities.get(data.activeId)?.faction==="allies"&&entities.get(data.activeId).health>0?data.activeId:
     ([...entities.values()].find(e=>e.faction==="allies"&&e.health>0)?.id||"soldier-001");
-  lastSoldierId=entities.get(data.lastSoldierId)?.kind==="soldier"?data.lastSoldierId:"soldier-001";
+  lastSoldierId=entities.get(data.lastSoldierId)?.kind==="soldier"?data.lastSoldierId:
+    ([...entities.values()].find(u=>u.kind==="soldier"&&u.faction==="allies")?.id||"soldier-001");
   if(entities.get(activeId).kind==="soldier")lastSoldierId=activeId;
   currentSeat=entities.get(activeId).kind==="soldier"?"foot":["driver","gunner","commander","pilot","door-gunner"].includes(data.currentSeat)?data.currentSeat:entities.get(activeId).kind==="tank"?"driver":"pilot";
   // Migração e consistência: os dados de bordo dos soldados são a fonte de verdade.
@@ -207,15 +211,15 @@ function loadSnapshot(data){
 }
 function saveLocal(){try{localStorage.setItem(saveKey,JSON.stringify(snapshot()));notice("Batalha salva neste navegador")}catch(e){notice("Não foi possível salvar: "+e.message)}}
 function download(text,name){const href=URL.createObjectURL(new Blob([text],{type:"application/json"}));const a=document.createElement("a");a.href=href;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(href),2000)}
-$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v035.json");
+$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v036.json");
 $("import").onclick=()=>$("file").click();$("file").onchange=async ev=>{const file=ev.target.files?.[0];if(!file)return;try{if(file.size>250000)throw Error("Máximo 250 KB");loadSnapshot(JSON.parse(await file.text()));notice("Batalha importada")}catch(e){notice("Falha na importação: "+e.message)}finally{ev.target.value=""}};
 $("reset").onclick=()=>{if(!confirm("Reiniciar o laboratório e perder as alterações não exportadas?"))return;try{localStorage.removeItem(saveKey)}catch{}location.reload()};
 try{const saved=localStorage.getItem(saveKey);if(saved)loadSnapshot(JSON.parse(saved))}catch(e){console.warn("Save ignorado",e);notice("Save antigo inválido; usando cenário padrão")}
+let pendingScenario=null;
 if(new URLSearchParams(location.search).get("mission")==="custom"){
   try{
     const mission=validateMission(JSON.parse(localStorage.getItem("wmk-ca-mission-v035")||"null"));
-    missionState=startMission(mission);missionAlerted=false;
-    notice("Missão personalizada carregada: "+mission.name);
+    pendingScenario=mission;
   }catch(e){notice("Falha ao carregar missão do editor: "+e.message)}
 }
 function renderControls(){
@@ -229,7 +233,9 @@ function renderControls(){
     b.append(small);b.disabled=e.health<=0;b.onclick=()=>assume(e.id,false);list.append(b);
     const o=document.createElement("option");o.value=e.id;o.textContent=e.name;select.append(o);
   }
-  select.value=selectedMapId&&entities.get(selectedMapId)?.faction==="allies"?selectedMapId:"tank-001";
+  if(!entities.get(selectedMapId)||entities.get(selectedMapId).faction!=="allies")
+    selectedMapId=[...entities.values()].find(u=>u.faction==="allies")?.id||"";
+  select.value=selectedMapId;
   renderSquadPanel();
 }
 function assume(id,fromBoard=false){
@@ -481,7 +487,11 @@ window.addEventListener("keydown",ev=>{
     if(ev.code==="KeyF"&&!mapOpen)switchSeat();
     if(ev.code==="KeyR"&&!mapOpen)reloadActive();
     if(["Digit1","Digit2","Digit3","Digit4"].includes(ev.code)&&!mapOpen){
-      const id={Digit1:"soldier-001",Digit2:"tank-001",Digit3:"heli-001",Digit4:"soldier-002"}[ev.code];assume(id,false);
+      const allies=[...entities.values()].filter(u=>u.faction==="allies");
+      const soldiers=allies.filter(u=>u.kind==="soldier");
+      const id={Digit1:soldiers[0]?.id,Digit2:allies.find(u=>u.kind==="tank")?.id,
+        Digit3:allies.find(u=>u.kind==="heli")?.id,Digit4:soldiers[1]?.id}[ev.code];
+      if(id)assume(id,false);else notice("Nenhuma unidade dessa classe no cenário");
     }
   }
   keys.add(ev.code);
@@ -499,6 +509,30 @@ function reloadActive(){
   e.reload=cfg.reloadTime;notice("Recarregando "+e.name);
 }
 const projectiles=[];
+function applyScenario(raw){
+  const definition=validateMission(raw);
+  if(!definition.units)throw Error("Missão sem definição de unidades");
+  const roster=validateRoster(definition.units);
+  // Validação completa primeiro: nunca apagar a batalha se o cenário for inválido.
+  if(!roster.some(u=>u.faction==="allies"&&u.kind==="soldier"&&u.health>0))
+    throw Error("A missão precisa de um soldado aliado vivo.");
+  for(const projectile of projectiles){scene.remove(projectile.mesh);projectile.mesh.geometry.dispose()}
+  projectiles.length=0;
+  for(const e of entities.values()){
+    scene.remove(e.group);
+    e.group.traverse(obj=>{if(obj.isMesh)obj.geometry.dispose()});
+  }
+  entities.clear();
+  for(const unit of roster)createEntity({...unit,speed:0,cooldown:0,reload:0,seat:null});
+  lastSoldierId=roster.find(u=>u.kind==="soldier"&&u.faction==="allies"&&u.health>0).id;
+  activeId=lastSoldierId;currentSeat="foot";cameraYaw=entities.get(activeId).group.rotation.y;
+  missionKills=0;missionScore=0;missionState=startMission(definition);missionAlerted=false;
+  squadSelection=new Set(roster.filter(u=>u.faction==="allies"&&u.id!==activeId).map(u=>u.id));
+  selectedMapId=activeId;keys.clear();mouseDown=false;
+  renderControls();renderCrewPanel();renderSquadPanel();renderMissionPanel();
+  notice("CENÁRIO CARREGADO · "+roster.length+" unidades · "+definition.objectives.length+" objetivos");
+}
+
 function combatView(e){return {...e,position:e.group.position.toArray()}}
 function visibleCombat(attacker,target){
   if(attacker.kind==="heli"||target.kind==="heli")return true; // Los aéreo simplificado
@@ -761,8 +795,8 @@ function updateHUD(){
     "<br><b>Posição:</b> "+e.group.position.toArray().map(v=>v.toFixed(1)).join(", ")+
     "<br><b>Velocidade:</b> "+e.speed.toFixed(1)+
     "<br><b>Estado soldado:</b> "+(person().aboard?"a bordo "+person().aboard:"a pé")+
-    "<br><b>Bot tanque:</b> "+(activeId==="tank-001"?"jogador":entities.get("tank-001").order)+
-    "<br><b>Bot helicóptero:</b> "+(activeId==="heli-001"?"jogador":entities.get("heli-001").order)+
+    "<br><b>Blindados aliados:</b> "+[...entities.values()].filter(u=>u.kind==="tank"&&u.faction==="allies").length+
+    "<br><b>Helicópteros aliados:</b> "+[...entities.values()].filter(u=>u.kind==="heli"&&u.faction==="allies").length+
     "<br><b>IA selecionada:</b> "+(entities.get(selectedMapId)?.navStatus||"sem navegação")+
     "<br><b>Eliminações:</b> "+(e.kills||0)+" · Pontos: "+(e.score||0)+
     "<br><b>FPS:</b> "+Math.round(1/Math.max(.0001,frameDt));
@@ -815,4 +849,10 @@ function saveLayout(){const layout={};for(const p of document.querySelectorAll("
 try{const layout=JSON.parse(localStorage.getItem(panelKey)||"{}");for(const p of document.querySelectorAll(".panel"))if(layout[p.id]){const d=layout[p.id];p.style.left=Math.max(0,d.x)+"px";p.style.top=Math.max(0,d.y)+"px";p.style.width=d.w+"px";p.style.height=d.h+"px";p.style.right="auto";p.style.bottom="auto"}}catch{}
 $("layouts").onclick=()=>{try{localStorage.removeItem(panelKey)}catch{}location.reload()};
 window.addEventListener("beforeunload",()=>{try{localStorage.setItem(saveKey,JSON.stringify(snapshot()))}catch{}});
+if(pendingScenario){
+  try{
+    if(pendingScenario.units)applyScenario(pendingScenario);
+    else loadMissionDefinition(pendingScenario);
+  }catch(e){console.error("Cenário personalizado inválido",e);notice("ERRO NO CENÁRIO: "+e.message)}
+}
 renderControls();renderCrewPanel();renderMissionPanel();requestAnimationFrame(animate);
