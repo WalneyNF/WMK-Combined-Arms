@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "wmk-helicopter-training",
+  "name": "Helicóptero Escola",
+  "kind": "heli",
+  "maxHealth": 100,
+  "maxSpeed": 40,
+  "turnRate": 0.5,
+  "weaponIds": [
+    "cannon-20mm"
+  ],
+  "model": "assets/models/helicopter.glb"
+}
