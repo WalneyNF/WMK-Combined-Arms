@@ -48,4 +48,22 @@ else:
         if check.returncode:
             print(check.stderr)
             sys.exit(check.returncode)
+# Laboratório: módulo externo, página e elementos de interação.
+lab_html=(root / "unit-control-lab.html").read_text(encoding="utf-8")
+lab_js=(root / "src" / "lab" / "unit-control.js").read_text(encoding="utf-8")
+assert '<!DOCTYPE html>' in lab_html and '</html>' in lab_html
+assert 'src="./src/lab/unit-control.js"' in lab_html
+for element_id in ("units-list","mapcanvas","order-target","debug-text","file","save","export","import"):
+    assert f'id="{element_id}"' in lab_html, f"Controle ausente no laboratório: {element_id}"
+for symbol in ("modelSoldier", "modelTank", "modelHeli", "function assume(", "function disembark(", "function switchSeat(", "function toggleMap(", "function saveLocal(", "function botUpdate("):
+    assert symbol in lab_js, f"Recurso não encontrado: {symbol}"
+assert (root / "manuais" / "unit-control-lab.html").is_file()
+try:
+    check_lab=subprocess.run(["node","--check","--input-type=module"],input=lab_js,text=True,capture_output=True,check=False)
+except FileNotFoundError:
+    print("AVISO: Node.js indisponível para laboratório.")
+else:
+    if check_lab.returncode:
+        print(check_lab.stderr)
+        sys.exit(check_lab.returncode)
 print("OK: arquivos, documentação, JSON e sintaxe JavaScript.")
