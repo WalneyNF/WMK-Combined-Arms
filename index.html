@@ -812,6 +812,13 @@
         letter-spacing: .06em;
       }
     }
+    #wmk-roster{position:fixed;left:20px;top:190px;z-index:8;width:255px;max-height:40vh;overflow:auto;background:#091d27ee;border:1px solid #72e2c1;padding:10px;pointer-events:auto;border-radius:7px}
+    #wmk-roster h3{font-size:10px;color:#72e2c1;letter-spacing:.1em}
+    #wmk-roster-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+    #wmk-roster button{padding:7px 4px;background:#173440;border:1px solid #396570;color:white;border-radius:4px;cursor:pointer;font:10px system-ui}
+    #wmk-roster button.active{border-color:#72e2c1;background:#246150}
+    #wmk-roster button:disabled{opacity:.4}
+    @media(max-width:650px){#wmk-roster{left:8px;top:185px;width:165px;max-height:22vh}}
   </style>
 </head>
 
@@ -831,7 +838,7 @@
         <button id="startButton" class="primary-button">Iniciar missão&nbsp; →</button>
         <div class="menu-hint">
           <strong>WASD</strong> mover &nbsp;·&nbsp; <strong>ESPAÇO</strong> disparar<br />
-          <strong>1 / 2 / 3</strong> trocar de veículo
+          <strong>1–8</strong> assumir unidade
         </div>
       </div>
       <div class="menu-footer">
@@ -968,11 +975,13 @@
       <div><b>A / D</b> &nbsp; guinar / virar</div>
       <div><b>ESPAÇO</b> &nbsp; arma primária</div>
       <div><b>F</b> &nbsp; míssil teleguiado</div>
-      <div><b>Q / E</b> &nbsp; altitude do helicóptero</div>
+      <div><b>Q / E</b> &nbsp; altitude/profundidade</div>
+      <div><b>1–8</b> &nbsp; assumir unidade</div>
       <div><b>SHIFT</b> &nbsp; impulso</div>
       <div><b>ESC</b> &nbsp; pausar</div>
     </div>
 
+    <section id="wmk-roster"><h3>UNIDADES · 1 A 8</h3><div id="wmk-roster-grid"></div></section>
     <div class="touch-controls">
       <div class="touch-pad">
         <div></div>
@@ -2225,6 +2234,44 @@
     // ---------------------------------------------------------------------
     // Troca de veículos e IA inimiga
     // ---------------------------------------------------------------------
+
+    const unitTypes=["heli","tank","ship","soldier","artillery","plane","sub","apc"];
+    const unitRegistry=new Map();
+    unitRegistry.set("heli",{group:player.group,yaw:player.yaw,speed:0,verticalSpeed:0,hp:player.hp,fireCooldown:0,missileCooldown:0});
+    function spawnPlayable(type){
+      const p=vehiclePositions[type], group=buildVehicle(type,"player");
+      let y=terrainHeight(p.x,p.z);
+      if(["heli","plane"].includes(type))y=Math.max(0,y)+(p.altitude||42);
+      else if(type==="ship")y=seaHeight(p.x,p.z,gameClock)+.32;
+      else if(type==="sub")y=-(p.depth||8);
+      group.position.set(p.x,y,p.z);group.rotation.y=p.yaw||0;scene.add(group);
+      return {group,yaw:p.yaw||0,speed:0,verticalSpeed:0,hp:vehicleStats[type].maxHp||100,fireCooldown:0,missileCooldown:0};
+    }
+    for(const t of unitTypes)if(t!=="heli")unitRegistry.set(t,spawnPlayable(t));
+    const stateKeys=["group","yaw","speed","verticalSpeed","hp","fireCooldown","missileCooldown"];
+    function storeUnit(){const u=unitRegistry.get(player.type);for(const k of stateKeys)u[k]=player[k]}
+    function activateUnit(type){const u=unitRegistry.get(type);if(!u||u.hp<=0)return false;player.type=type;for(const k of stateKeys)player[k]=u[k];return true}
+    function drawRoster(){
+      const root=document.getElementById("wmk-roster-grid");if(!root)return;
+      root.replaceChildren();
+      for(const [i,type] of unitTypes.entries()){
+        const b=document.createElement("button"),u=unitRegistry.get(type);
+        b.textContent=(i+1)+" · "+vehicleStats[type].name+" · HP "+Math.round(u.hp);
+        b.classList.toggle("active",type===player.type);b.disabled=u.hp<=0;
+        b.onclick=()=>switchVehicle(type);root.append(b);
+      }
+    }
+    drawRoster();
+    Promise.all(unitTypes.map(async type=>{
+      try{
+        const res=await fetch("./data/units/"+type+".json");if(!res.ok)return;
+        const d=await res.json();if(d.schemaVersion!==1||d.type!==type)return;
+        for(const k of ["name","weapon","description","maxSpeed","response","turn","rate","damage","shotSpeed","boost","cameraDistance","cameraHeight","maxHp"]){
+          if(["name","weapon","description"].includes(k)?typeof d[k]==="string":typeof d[k]==="number"&&Number.isFinite(d[k])&&d[k]>0)vehicleStats[type][k]=d[k]
+        }
+      }catch(e){console.warn("WMK JSON:",type,e)}
+    })).then(()=>drawRoster());
+
     function saveVehiclePosition() {
       const record = vehiclePositions[player.type];
       record.x = player.group.position.x;
@@ -2236,43 +2283,11 @@
       }
     }
 
-    function switchVehicle(type) {
-      if (!started || ended || type === player.type || !vehicleStats[type]) return;
-
-      saveVehiclePosition();
-
-      const oldGroup = player.group;
-      scene.remove(oldGroup);
-      oldGroup.traverse((object) => {
-        if (object.isMesh) {
-          object.geometry.dispose();
-          if (Array.isArray(object.material)) object.material.forEach((m) => m.dispose());
-          else object.material.dispose();
-        }
-      });
-
-      player.type = type;
-      const record = vehiclePositions[type];
-      player.yaw = record.yaw || 0;
-      player.speed = 0;
-      player.verticalSpeed = 0;
-      player.fireCooldown = 0;
-      player.group = buildVehicle(type, "player");
-
-      if (type === "heli") {
-        const floor = Math.max(0, terrainHeight(record.x, record.z));
-        player.group.position.set(record.x, floor + Math.max(18, record.altitude || 42), record.z);
-      } else if (type === "tank") {
-        player.group.position.set(record.x, terrainHeight(record.x, record.z), record.z);
-      } else {
-        player.group.position.set(record.x, seaHeight(record.x, record.z, gameClock) + 0.32, record.z);
-      }
-
-      player.group.rotation.y = player.yaw;
-      scene.add(player.group);
-      updateVehicleButtons();
-      updateHUD();
-      showToast(`UNIDADE ATIVA · ${vehicleStats[type].name}`);
+    function switchVehicle(type){
+      if(!started||paused||ended||player.type===type||!vehicleStats[type])return;
+      saveVehiclePosition();storeUnit();
+      if(!activateUnit(type)){showToast("UNIDADE DESTRUÍDA");return}
+      clearInput();drawRoster();updateVehicleButtons();updateHUD();showToast("UNIDADE ATIVA · "+vehicleStats[type].name);
     }
 
     function updateVehicleButtons() {
