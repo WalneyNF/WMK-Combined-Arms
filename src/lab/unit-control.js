@@ -93,6 +93,7 @@ function modelEnemy(){
 }
 const defaults=[
 {id:"soldier-001",kind:"soldier",name:"Soldado WMK",faction:"allies",health:100,maxHealth:100,position:[0,0,24],yaw:0,speed:0,ammo:30,reserve:150,reload:0,cooldown:0,order:"hold",target:[0,0,24],seat:null},
+{id:"soldier-002",kind:"soldier",name:"Soldado de apoio",faction:"allies",health:100,maxHealth:100,position:[-12,0,20],yaw:0,speed:0,ammo:30,reserve:90,reload:0,cooldown:0,order:"follow",target:[0,0,24],seat:null},
 {id:"tank-001",kind:"tank",name:"Tanque Sherman (protótipo)",faction:"allies",health:230,maxHealth:230,position:[25,0,-5],yaw:0,speed:0,ammo:38,reserve:85,reload:0,cooldown:0,order:"hold",target:[25,0,-5],seat:null},
 {id:"heli-001",kind:"heli",name:"Helicóptero de apoio",faction:"allies",health:160,maxHealth:160,position:[-40,13,-8],yaw:0,speed:0,ammo:260,reserve:500,reload:0,cooldown:0,order:"patrol",target:[-40,13,-55],seat:null},
 {id:"enemy-001",kind:"target",name:"Alvo Hostil A",faction:"enemy",health:95,maxHealth:95,position:[-8,0,-95],yaw:0,speed:0,ammo:0,reserve:0,reload:0,cooldown:0,order:"hold",target:[-8,0,-95],seat:null},
@@ -103,7 +104,7 @@ tank:{maxSpeed:19,run:1.2,acceleration:3.5,turn:1.1,damage:68,rate:1.3,magazine:
 heli:{maxSpeed:35,run:1.3,acceleration:2.7,turn:1.1,damage:18,rate:.17,magazine:260,reloadTime:2.6,range:310},
 target:{maxSpeed:0,run:0,acceleration:0,turn:0,damage:0,rate:0,magazine:0,reloadTime:0,range:0}};
 const entities=new Map();
-let activeId="soldier-001",currentSeat="foot",cameraYaw=0,cameraPitch=.22;
+let activeId="soldier-001",lastSoldierId="soldier-001",currentSeat="foot",cameraYaw=0,cameraPitch=.22;
 let mouseDown=false, paused=false, mapOpen=false,selectedMapId="tank-001",mapTarget=[0,0,0], missionKills=0;
 let last=performance.now(),elapsed=0,toastTime=0,shotEffects=[];
 const keys=new Set(),saveKey="wmk-unit-control-lab-v030",panelKey="wmk-unit-control-layout-v030";
@@ -129,9 +130,9 @@ for(const d of defaults)createEntity(d);
 function active(){return entities.get(activeId)}
 function notice(txt){$("notice").textContent=txt;toastTime=4}
 function isVehicle(e){return e?.kind==="tank"||e?.kind==="heli"}
-function person(){return entities.get("soldier-001")}
-function unitState(e){const {group,aiTime,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
-function snapshot(){return {schemaVersion:1,labVersion:"0.3.0",activeId,currentSeat,cameraYaw,cameraPitch,missionKills,units:[...entities.values()].map(unitState)}}
+function person(){return entities.get(lastSoldierId)||entities.get("soldier-001")}
+function unitState(e){const {group,aiTime,jumpTime,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
+function snapshot(){return {schemaVersion:1,labVersion:"0.3.1",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,units:[...entities.values()].map(unitState)}}
 function loadSnapshot(data){
   if(!data||data.schemaVersion!==1||!Array.isArray(data.units)||data.units.length<3||data.units.length>20)throw Error("Arquivo não é um save WMK válido");
   const seen=new Set(),updated=data.units.map(x=>validateUnit(x));
@@ -140,8 +141,10 @@ function loadSnapshot(data){
   const items=[...entities.values()];for(const e of items){scene.remove(e.group);e.group.traverse(obj=>{if(obj.isMesh)obj.geometry.dispose()});}entities.clear();
   for(const u of updated)createEntity(u);
   activeId=entities.has(data.activeId)&&entities.get(data.activeId).faction==="allies"?data.activeId:"soldier-001";
-  currentSeat=activeId==="soldier-001"?"foot":["driver","gunner","commander","pilot","door-gunner"].includes(data.currentSeat)?data.currentSeat:entities.get(activeId).kind==="tank"?"driver":"pilot";
-  const soldier=person();if(soldier.aboard&&entities.has(soldier.aboard))soldier.group.visible=false;
+  lastSoldierId=entities.get(data.lastSoldierId)?.kind==="soldier"?data.lastSoldierId:"soldier-001";
+  if(entities.get(activeId).kind==="soldier")lastSoldierId=activeId;
+  currentSeat=entities.get(activeId).kind==="soldier"?"foot":["driver","gunner","commander","pilot","door-gunner"].includes(data.currentSeat)?data.currentSeat:entities.get(activeId).kind==="tank"?"driver":"pilot";
+  for(const soldier of entities.values())if(soldier.kind==="soldier"&&soldier.aboard&&entities.has(soldier.aboard))soldier.group.visible=false;
   cameraYaw=safeNumber(data.cameraYaw,0,10000);cameraPitch=THREE.MathUtils.clamp(safeNumber(data.cameraPitch,.2),-.6,1.1);
   missionKills=Math.max(0,Math.floor(safeNumber(data.missionKills,0,10000)));renderControls();
 }
@@ -166,11 +169,13 @@ function renderControls(){
 }
 function assume(id,fromBoard=false){
   const e=entities.get(id);if(!e||e.faction!=="allies"||e.health<=0)return notice("Unidade indisponível");
-  if(id==="soldier-001" && person().aboard){
+  if(e.kind==="soldier"&&e.aboard){
+    lastSoldierId=e.id;
     if(fromBoard){disembark();return}
     // Seleção remota do soldado ocupado requer sair do veículo primeiro.
     disembark();return;
   }
+  if(e.kind==="soldier")lastSoldierId=e.id;
   if(fromBoard&&isVehicle(e)){person().aboard=e.id;person().group.visible=false;}
   activeId=id;currentSeat=e.kind==="soldier"?"foot":e.kind==="tank"?"driver":"pilot";
   cameraYaw=e.group.rotation.y;
@@ -184,7 +189,7 @@ function disembark(){
   const exit=findSafeExit(vehicle.group.position,vehicle.group.rotation.y,blockers);
   if(!exit){notice("Saída bloqueada. Movimente o veículo para outra posição.");return}
   soldier.group.position.set(exit.x,0,exit.z);
-  soldier.aboard=null;soldier.group.visible=true;activeId="soldier-001";currentSeat="foot";
+  soldier.aboard=null;soldier.group.visible=true;activeId=soldier.id;currentSeat="foot";
   cameraYaw=soldier.group.rotation.y;keys.clear();mouseDown=false;
   renderControls();notice("Desembarcou: veículo preservado no mundo.");
 }
@@ -257,8 +262,8 @@ window.addEventListener("keydown",ev=>{
     if(ev.code==="KeyE"&&!mapOpen)interact();
     if(ev.code==="KeyF"&&!mapOpen)switchSeat();
     if(ev.code==="KeyR"&&!mapOpen)reloadActive();
-    if(["Digit1","Digit2","Digit3"].includes(ev.code)&&!mapOpen){
-      const id={Digit1:"soldier-001",Digit2:"tank-001",Digit3:"heli-001"}[ev.code];assume(id,false);
+    if(["Digit1","Digit2","Digit3","Digit4"].includes(ev.code)&&!mapOpen){
+      const id={Digit1:"soldier-001",Digit2:"tank-001",Digit3:"heli-001",Digit4:"soldier-002"}[ev.code];assume(id,false);
     }
   }
   keys.add(ev.code);
