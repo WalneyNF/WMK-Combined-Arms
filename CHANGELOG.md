@@ -1,5 +1,13 @@
 # Histórico de alterações
 
+## [0.3.1-lab] — 2026-11-23 (experimental)
+- Segundo soldado aliado independente, selecionável pela tecla 4, com ordem padrão Seguir.
+- Colisão 2D simples para edificações e blindados; evita atravessar volumes.
+- Desembarque com busca de posição segura e distinção entre controle remoto e embarque.
+- Migração de saves antigos da v0.3.0 para incluir a nova entidade.
+- Módulo puro de geometria e testes unitários Node.js executados no GitHub Actions.
+- Ainda sem pathfinding, física rígida ou integração ao jogo principal.
+
 ## [0.3.0-lab] — 2026-11-23 (experimental e separado)
 
 - Publicado `unit-control-lab.html` e `src/lab/unit-control.js`.
