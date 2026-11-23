@@ -28,7 +28,7 @@ h2{font-size:13px;letter-spacing:.06em;color:var(--accent);margin:0 0 12px}h3{fo
 <p class="muted">Use ↑/↓ para reorganizar objetivos. A execução avalia cada objetivo independentemente.</p>
 <h3>UNIDADES / SPAWN</h3>
 <div class="row"><select id="new-unit-kind"><option value="soldier">Soldado</option><option value="tank">Tanque</option><option value="heli">Helicóptero</option><option value="target">Alvo fixo</option></select><select id="new-unit-side"><option value="allies">Aliado</option><option value="enemy">Inimigo</option></select></div>
-<button id="add-unit">+ Inserir unidade</button><div id="unit-list"></div>
+<button id="add-unit">+ Inserir unidade</button><button id="clone-unit">Duplicar selecionada</button><div id="unit-list"></div>
 </section>
 <section class="panel map-panel">
 <h2>02 · MAPA TÁTICO · POSICIONAR OBJETIVOS E UNIDADES</h2>
@@ -131,7 +131,11 @@ function unitField(root,label,key,kind="text",options=[]){
   if(key==="yaw")u.yaw=value*Math.PI/180;
   else if(idx!==null)u.position[idx]=value;
   else u[key]=value;
-  if(key==="id"){selectedUnitId=value}
+  if(key==="id"){
+    const previous=selectedUnitId;
+    for(const o of mission.objectives)if(o.targetId===previous)o.targetId=value;
+    selectedUnitId=value;
+  }
   if(key==="maxHealth"){u.health=Math.min(u.health,u.maxHealth)}
   renderAll();
  };
@@ -149,6 +153,18 @@ function renderUnitProperties(){
  unitField(root,"Munição","ammo","number");unitField(root,"Reserva","reserve","number");
  unitField(root,"Ordem inicial","order","select",["hold","follow","patrol","attack","defend"]);
 }
+$("clone-unit").onclick=()=>{
+ const source=unit();if(!source)return alertUser("Selecione uma unidade.");
+ if(mission.units.length>=40)return alertUser("Limite de 40 unidades por missão.");
+ const duplicate=structuredClone(source);
+ duplicate.id=nextSpawnId(mission.units,duplicate.kind,duplicate.faction);
+ duplicate.name=source.name+" (cópia)";
+ duplicate.position[0]=Math.min(250,source.position[0]+10);
+ duplicate.position[2]=Math.min(250,source.position[2]+10);
+ duplicate.target=[...duplicate.position];
+ mission.units.push(duplicate);selectedUnitId=duplicate.id;mode="unit";
+ renderAll();alertUser("Unidade duplicada: "+duplicate.id);
+};
 $("add-unit").onclick=()=>{
  if(!Array.isArray(mission.units))mission.units=defaultRoster();
  if(mission.units.length>=40)return alertUser("Máximo de 40 unidades.");
