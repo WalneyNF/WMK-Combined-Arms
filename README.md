@@ -4,6 +4,14 @@
 
 **Versão:** 0.2.0 · **Autor das adaptações WMK:** Walney Moreira Klein — walneyk@hotmail.com
 
+## 🎮 WMK Unit Control Lab v0.3.0 (experimental)
+
+**[Abrir laboratório](unit-control-lab.html)** · [Manual completo](manuais/unit-control-lab.html)
+
+Protótipo independente com soldado em terceira pessoa, tanque e helicóptero persistentes, entrada/saída com E, postos de veículo por F, disparos de treinamento, comandos básicos a bots, mapa tático M, modo de depuração e save/import/export JSON. Controles: WASD, Shift, mouse/K, E, F, R, Q/C no helicóptero, M para mapa, 1/2/3 para assumir unidades remotamente.
+
+> O jogo principal continua na v0.2.0 e permanece preservado. O laboratório v0.3.0 é uma experiência separada: os sistemas ainda não estão integrados ao index.html. Bots só têm navegação básica; não há colisão com prédios, ocupação física de múltiplos personagens, física realista, multiplayer nem modelos GLB.
+
 ## 🧰 Editor 3D experimental
 
 Abra [WMK World Studio Beta](studio.html) no servidor HTTP. Crie objetos primitivos, transforme com gizmos G/R/S, duplique, salve/import/export mapas JSON, mova e redimensione os painéis. Editor de JSON para veículos, bots, missões e armas com exemplos, **sem ligação automática ao jogo**. Para inserir no chão, segure Shift e clique no terreno.
