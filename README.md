@@ -4,15 +4,17 @@
 
 **Versão:** 0.2.0 · **Autor das adaptações WMK:** Walney Moreira Klein — walneyk@hotmail.com
 
-## 🎮 WMK Unit Control Lab v0.3.2 (experimental)
+## 🎮 WMK Unit Control Lab v0.3.3 (experimental)
 
 **[Abrir laboratório](unit-control-lab.html)** · [Manual completo](manuais/unit-control-lab.html)
 
 Protótipo independente com dois soldados em terceira pessoa, tanque e helicóptero persistentes, entrada/saída com E, postos de veículo por F, disparos de treinamento, comandos básicos a bots, mapa tático M, modo de depuração e save/import/export JSON. Controles: WASD, Shift, mouse/K, E, F, R, Q/C no helicóptero, M para mapa, 1/2/3/4 para assumir unidades remotamente.
 
-> O jogo principal continua na v0.2.0 e permanece preservado. O laboratório v0.3.0 é uma experiência separada: os sistemas ainda não estão integrados ao index.html. Bots usam navegação terrestre A* básica, sem combate autônomo; há apenas colisões simplificadas com construções e veículos terrestres, ocupação física de múltiplos personagens, física realista, multiplayer nem modelos GLB.
+> O jogo principal continua na v0.2.0 e permanece preservado. O laboratório v0.3.0 é uma experiência separada: os sistemas ainda não estão integrados ao index.html. Bots possuem navegação A* e combate arcade básico, sem IA estratégica avançada; há apenas colisões simplificadas com construções e veículos terrestres, ocupação física de múltiplos personagens, física realista, multiplayer nem modelos GLB.
 
-**Novidades v0.3.2:** bots de solo com busca A* e desvio de prédios/tanques; painel móvel de tripulação, atribuição de soldados a postos sem duplicação e persistência JSON dos ocupantes. Testes em `tests/navigation.test.mjs`, `tests/crew.test.mjs`, `tests/movement.test.mjs` executados no GitHub Actions.
+**Novidades v0.3.3:** combate entre unidades: bots aliados e alvos hostis reagem com disparos, seleção automática de alvos e alvos prioritários. Painel de esquadrão com seleção múltipla, ordens Atacar/Defender/Seguir/Cessar fogo, contagem de mortes e pontuação individual, log de eventos e estado salvo no JSON. Regras isoladas em `src/lab/combat.mjs` e testes `tests/combat.test.mjs`.
+
+**Base da v0.3.2:** bots de solo com busca A* e desvio de prédios/tanques; painel móvel de tripulação, atribuição de soldados a postos sem duplicação e persistência JSON dos ocupantes. Testes em `tests/navigation.test.mjs`, `tests/crew.test.mjs`, `tests/movement.test.mjs` executados no GitHub Actions.
 
 **Base da v0.3.1:** segundo soldado com identidade e estado individuais, prevenção básica de atravessar construções/tanques, desembarque com busca de saída livre, módulo `src/lab/movement.mjs` e testes unitários em `tests/movement.test.mjs`. O jogo principal continua v0.2.0.
 
