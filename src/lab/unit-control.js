@@ -330,6 +330,11 @@ function renderMissionPanel(){
   const progress=missionProgress(missionState);
   status.textContent=missionState.definition.name+" · "+progress.completed+"/"+progress.total+
     " concluídos · "+missionState.status.toUpperCase();
+  const presetPicker=document.getElementById("mission-preset");
+  if(presetPicker){
+    const ids={patrol:"operacao-patrulha",base:"defesa-base",escort:"escolta-tanque"};
+    presetPicker.value=Object.entries(ids).find(([key,value])=>value===missionState.definition.id)?.[0]||"custom";
+  }
   root.replaceChildren();
   for(const objective of missionState.definition.objectives){
     const state=missionState.objectives[objective.id];
@@ -343,7 +348,12 @@ function renderMissionPanel(){
   }
 }
 const missionSelect=document.getElementById("mission-preset");
-if(missionSelect)missionSelect.onchange=()=>loadMissionDefinition(presetMission(missionSelect.value));
+if(missionSelect)missionSelect.onchange=()=>{
+  if(missionSelect.value==="custom"){
+    try{loadMissionDefinition(validateMission(JSON.parse(localStorage.getItem("wmk-ca-mission-v035")||"null")))}
+    catch(e){notice("Crie e salve uma missão no editor: "+e.message)}
+  }else loadMissionDefinition(presetMission(missionSelect.value));
+};
 const missionReset=document.getElementById("mission-restart");
 if(missionReset)missionReset.onclick=()=>loadMissionDefinition(missionState.definition);
 function addCombatLog(message) {
@@ -520,8 +530,8 @@ function onDestroyed(target,owner){
     missionKills++;
     addCombatLog(target.name+" neutralizado por "+(owner?.name||"desconhecido"));
     if([...entities.values()].every(e=>e.faction!=="enemy"||e.health<=0)){
-      addCombatLog("MISSÃO DE TREINAMENTO CUMPRIDA");
-      notice("MISSÃO CUMPRIDA · TODOS OS ALVOS NEUTRALIZADOS");
+      addCombatLog("Todos os inimigos neutralizados");
+      if(missionState?.status==="running")notice("TODOS OS INIMIGOS NEUTRALIZADOS · Verifique os objetivos restantes");
     }
   }
   else addCombatLog("ALIADO PERDIDO · "+target.name);
