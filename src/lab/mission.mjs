@@ -1,4 +1,5 @@
-// WMK Combined Arms — contrato de missões v0.3.5. Independente do motor gráfico.
+import {validateRoster} from "./scenario.mjs";
+// WMK Combined Arms — contrato de missões v0.3.6. Independente do motor gráfico.
 // O editor, os testes e o laboratório utilizam exatamente o mesmo esquema.
 export const OBJECTIVE_TYPES=Object.freeze(["eliminate","capture","defend","escort"]);
 const idOk=s=>typeof s==="string" && /^[a-zA-Z0-9_-]{1,64}$/.test(s);
@@ -26,8 +27,24 @@ export function validateMission(raw){
       targetId:idOk(o.targetId)?o.targetId:null
     };
   });
+  const units=raw.units===undefined?undefined:validateRoster(raw.units);
+  if(units){
+    const indexed=new Map(units.map(u=>[u.id,u]));
+    if(!units.some(u=>u.faction==="allies"&&u.kind==="soldier"))
+      throw Error("O cenário precisa de pelo menos um soldado aliado para iniciar");
+    for(const objective of objectives){
+      if(["eliminate","escort","defend"].includes(objective.type)){
+        const unit=indexed.get(objective.targetId);
+        if(!unit)throw Error("Objetivo "+objective.id+" aponta para unidade inexistente: "+objective.targetId);
+        if(objective.type==="eliminate"&&unit.faction!=="enemy")
+          throw Error("Objetivo eliminar deve apontar para inimigo: "+objective.targetId);
+        if(["escort","defend"].includes(objective.type)&&unit.faction!=="allies")
+          throw Error("Objetivo "+objective.type+" deve apontar para aliado: "+objective.targetId);
+      }
+    }
+  }
   return {schemaVersion:1,id:raw.id,name:raw.name.trim(),description:String(raw.description||"").slice(0,1000),
-    objectives};
+    objectives,...(units?{units}:{})};
 }
 export function startMission(mission){
   const definition=validateMission(mission);
