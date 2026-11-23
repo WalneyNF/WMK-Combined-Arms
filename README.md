@@ -4,13 +4,15 @@
 
 **Versão:** 0.2.0 · **Autor das adaptações WMK:** Walney Moreira Klein — walneyk@hotmail.com
 
-## 🎮 WMK Unit Control Lab v0.3.3 (experimental)
+## 🎮 WMK Unit Control Lab v0.3.4 (experimental)
 
 **[Abrir laboratório](unit-control-lab.html)** · [Manual completo](manuais/unit-control-lab.html)
 
 Protótipo independente com dois soldados em terceira pessoa, tanque e helicóptero persistentes, entrada/saída com E, postos de veículo por F, disparos de treinamento, comandos básicos a bots, mapa tático M, modo de depuração e save/import/export JSON. Controles: WASD, Shift, mouse/K, E, F, R, Q/C no helicóptero, M para mapa, 1/2/3/4 para assumir unidades remotamente.
 
 > O jogo principal continua na v0.2.0 e permanece preservado. O laboratório v0.3.0 é uma experiência separada: os sistemas ainda não estão integrados ao index.html. Bots possuem navegação A* e combate arcade básico, sem IA estratégica avançada; há apenas colisões simplificadas com construções e veículos terrestres, ocupação física de múltiplos personagens, física realista, multiplayer nem modelos GLB.
+
+**Novidades v0.3.4:** duas patrulhas inimigas móveis usam navegação A* para perseguir aliados, participar de combates e recarregar munição. Esquadrões aliados podem seguir o jogador nas formações **cunha, linha ou coluna**, configuradas no laboratório e preservadas no JSON. Alvos hostis possuem marcação visual vermelha e o HUD mostra o total dinâmico de inimigos. `src/lab/formation.mjs` contém a lógica testável das formações.
 
 **Novidades v0.3.3:** combate entre unidades: bots aliados e alvos hostis reagem com disparos, seleção automática de alvos e alvos prioritários. Painel de esquadrão com seleção múltipla, ordens Atacar/Defender/Seguir/Cessar fogo, contagem de mortes e pontuação individual, log de eventos e estado salvo no JSON. Regras isoladas em `src/lab/combat.mjs` e testes `tests/combat.test.mjs`.
 
@@ -21,6 +23,10 @@ Protótipo independente com dois soldados em terceira pessoa, tanque e helicópt
 ## 🧰 Editor 3D experimental
 
 Abra [WMK World Studio Beta](studio.html) no servidor HTTP. Crie objetos primitivos, transforme com gizmos G/R/S, duplique, salve/import/export mapas JSON, mova e redimensione os painéis. Editor de JSON para veículos, bots, missões e armas com exemplos, **sem ligação automática ao jogo**. Para inserir no chão, segure Shift e clique no terreno.
+
+## 📦 ZIP completo de testes
+
+O GitHub Actions gera automaticamente **WMK-Combined-Arms-v0.3.4.zip** após executar as verificações. Acesse [Actions](https://github.com/WalneyNF/WMK-Combined-Arms/actions), abra a execução mais recente concluída e baixe o artefato `WMK-Combined-Arms-v0.3.4-ZIP`. Alternativamente, o [ZIP direto do branch main](https://github.com/WalneyNF/WMK-Combined-Arms/archive/refs/heads/main.zip) contém o projeto integral atualizado.
 
 ## ▶️ Jogar
 
