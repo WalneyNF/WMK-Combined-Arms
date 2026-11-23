@@ -58,3 +58,33 @@ test("estado concluído não contabiliza progresso novamente",()=>{
   const done=advanceMission(startMission(raw),[unit("tank-001",[75,0,-48])],1);
   assert.strictEqual(advanceMission(done,[],2),done);
 });
+
+
+test("cenário com unidades customizadas é validado e mantido na missão",async()=>{
+ const {defaultRoster}=await import("../src/lab/scenario.mjs");
+ const mission=presetMission("patrol");mission.units=defaultRoster();
+ const checked=validateMission(mission);
+ assert.equal(checked.units.length,8);
+ assert.deepEqual(checked.units.find(u=>u.id==="tank-001").position,[25,0,-5]);
+});
+test("objetivos não podem apontar para unidades inexistentes",async()=>{
+ const {defaultRoster}=await import("../src/lab/scenario.mjs");
+ const mission=presetMission("patrol");mission.units=defaultRoster();
+ mission.objectives[0].targetId="unknown-666";
+ assert.throws(()=>validateMission(mission),/inexistente/);
+});
+test("objetivo eliminar não pode apontar para aliado",async()=>{
+ const {defaultRoster}=await import("../src/lab/scenario.mjs");
+ const mission=presetMission("patrol");mission.units=defaultRoster();
+ mission.objectives[0].targetId="soldier-001";
+ assert.throws(()=>validateMission(mission),/inimigo/);
+});
+test("missão personalizada exige soldado aliado",async()=>{
+ const {defaultRoster}=await import("../src/lab/scenario.mjs");
+ const mission=presetMission("escort");mission.units=defaultRoster().filter(u=>u.kind!=="soldier"||u.faction!=="allies");
+ assert.throws(()=>validateMission(mission),/soldado aliado/);
+});
+test("legado sem units segue válido para migração",()=>{
+ const mission=presetMission("escort");
+ assert.equal(validateMission(mission).units,undefined);
+});
