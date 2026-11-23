@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "wmk-tank-001",
+  "type": "tank",
+  "name": "TANQUE",
+  "weapon": "CANHÃO PRINCIPAL",
+  "description": "PROJÉTIL PERFURANTE · ALTO IMPACTO",
+  "maxSpeed": 26,
+  "response": 2.4,
+  "turn": 1.12,
+  "rate": 0.78,
+  "damage": 43,
+  "shotSpeed": 155,
+  "boost": 1.28,
+  "cameraDistance": 36,
+  "cameraHeight": 17,
+  "maxHp": 100,
+  "spawn": {
+    "x": -35,
+    "z": 220,
+    "yaw": 0
+  },
+  "category": "ground",
+  "model": {
+    "kind": "procedural",
+    "asset": null
+  },
+  "controls": {
+    "forward": "W",
+    "reverse": "S",
+    "left": "A",
+    "right": "D",
+    "fire": "Space",
+    "secondary": "F",
+    "ascend": null,
+    "descend": null
+  }
+}
