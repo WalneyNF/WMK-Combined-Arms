@@ -79,6 +79,28 @@ for control in ("squad-members","squad-target","combat-log","map-attack"):
 for symbol in ("updateBotCombat(", "dealDamage(", "giveSquadOrder(", "addCombatLog("):
     assert symbol in lab_js, f"Combate não integrado: {symbol}"
 assert 'from "./combat.mjs"' in lab_js
+assert (root / "src" / "lab" / "mission.mjs").is_file()
+assert (root / "tests" / "mission.test.mjs").is_file()
+mission_html=(root / "mission-editor.html").read_text(encoding="utf-8")
+assert '<!DOCTYPE html>' in mission_html and '</html>' in mission_html
+for key in ('id="mission-id"','id="objective-list"','id="map"','id="launch"'):
+    assert key in mission_html, f"Componente editor de missões ausente: {key}"
+assert 'from "./mission.mjs"' in lab_js
+for symbol in ("advanceMission(", "renderMissionPanel(", "loadMissionDefinition("):
+    assert symbol in lab_js, f"Motor de missão não integrado: {symbol}"
+for key in ('id="mission-objectives"','id="mission-status"'):
+    assert key in lab_html, f"Painel de missão ausente: {key}"
+
+mission_scripts=re.findall(r'<script type="module">([\s\S]*?)</script>',mission_html)
+assert len(mission_scripts)==1, "Editor deve ter um script módulo"
+try:
+    editor_check=subprocess.run(["node","--check","--input-type=module"],input=mission_scripts[0],text=True,capture_output=True,check=False)
+except FileNotFoundError:
+    print("AVISO: Node.js indisponível para editor.")
+else:
+    if editor_check.returncode:
+        print(editor_check.stderr)
+        sys.exit(editor_check.returncode)
 try:
     check_lab=subprocess.run(["node","--check","--input-type=module"],input=lab_js,text=True,capture_output=True,check=False)
 except FileNotFoundError:
