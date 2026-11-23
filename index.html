@@ -977,6 +977,7 @@
       <div><b>F</b> &nbsp; míssil teleguiado</div>
       <div><b>Q / E</b> &nbsp; altitude/profundidade</div>
       <div><b>1–8</b> &nbsp; assumir unidade</div>
+      <div><b>V</b> &nbsp; AAP: câmera estratégica</div>
       <div><b>SHIFT</b> &nbsp; impulso</div>
       <div><b>ESC</b> &nbsp; pausar</div>
     </div>
@@ -2125,7 +2126,50 @@
       }
     }
 
+    // Mira e balística arcade da AAP, independente dos demais veículos.
+    let aapStrategicMode=false,aapAimPoint=null;
+    const aapRaycaster=new THREE.Raycaster();
+    const aapMarker=new THREE.Mesh(new THREE.RingGeometry(4.5,6.2,40),
+      new THREE.MeshBasicMaterial({color:0xffd777,transparent:true,opacity:.8,side:THREE.DoubleSide}));
+    aapMarker.rotation.x=-Math.PI/2;aapMarker.visible=false;scene.add(aapMarker);
+    function updateAAPAim(clientX,clientY){
+      if(player.type!=="artillery"||!aapStrategicMode)return;
+      const rect=renderer.domElement.getBoundingClientRect();
+      const ndc=new THREE.Vector2((clientX-rect.left)/rect.width*2-1,-((clientY-rect.top)/rect.height*2-1));
+      aapRaycaster.setFromCamera(ndc,camera);
+      const hit=aapRaycaster.intersectObject(terrain,false)[0];if(!hit)return;
+      const point=hit.point;
+      if(Math.hypot(point.x-player.group.position.x,point.z-player.group.position.z)>350)return;
+      aapAimPoint=point.clone();aapMarker.visible=true;
+      aapMarker.position.set(point.x,point.y+.35,point.z);
+    }
+    function toggleAAPView(){
+      if(player.type!=="artillery")return;
+      aapStrategicMode=!aapStrategicMode;aapAimPoint=null;aapMarker.visible=false;
+      showToast(aapStrategicMode?"AAP · MIRA ESTRATÉGICA":"AAP · CÂMERA ARCADE");
+    }
+    function fireAAP(){
+      const stats=vehicleStats.artillery,origin=player.group.position.clone().add(new THREE.Vector3(0,3.8,0));
+      const forward=playerForward();
+      let aim=aapAimPoint?.clone();
+      if(!aim){
+        const target=findAimTarget(origin,forward,350,.78);
+        aim=target?vehicleTargetPoint(target):origin.clone().addScaledVector(forward,145);
+      }
+      const horizontal=Math.hypot(aim.x-origin.x,aim.z-origin.z);
+      if(horizontal>350||horizontal<12){showToast("AAP · ALCANCE: 12–350 M");return}
+      const gravity=32,flight=clamp(horizontal/68,1.8,5.2);
+      const velocity=new THREE.Vector3((aim.x-origin.x)/flight,
+        (aim.y-origin.y+.5*gravity*flight*flight)/flight,(aim.z-origin.z)/flight);
+      createProjectile(origin,velocity,{
+        speed:velocity.length(),damage:stats.damage,life:flight+1.5,
+        color:0xffbd68,hitRadius:1.25,aoe:19,gravity,artillery:true,minY:-8
+      });
+      player.fireCooldown=stats.rate;
+      showToast("AAP · PROJÉTIL 155 MM · "+Math.round(horizontal)+" M");
+    }
     function firePrimary() {
+      if(player.type==="artillery"){fireAAP();return}
       const stats = vehicleStats[player.type];
       const forward = playerForward();
       const origin = player.group.position.clone().addScaledVector(forward, player.type === "heli" ? 3.5 : 3.0);
@@ -2140,14 +2184,19 @@
 
       const target = findAimTarget(origin, forward, 700, 0.61);
       if (target) direction = vehicleTargetPoint(target).sub(origin).normalize();
-
+      if(player.type==="sub"){
+        origin.y=Math.min(-2.2,player.group.position.y+2);
+        direction.y=0;direction.normalize();
+      }
       createProjectile(origin, direction, {
         speed: stats.shotSpeed,
         damage: stats.damage,
         life: 5.7,
         color: player.type === "tank" ? 0xffc16f : player.type === "ship" ? 0xffd782 : 0x8dffe0,
-        hitRadius: 1.2,
-        aoe: player.type === "artillery" ? 16 : 0
+        hitRadius: player.type==="sub"?2.5:1.2,
+        life: player.type==="sub"?10:5.7,
+        minY: player.type==="sub"?-65:-4,
+        aoe: 0
       });
 
       player.fireCooldown = stats.rate;
@@ -2328,7 +2377,11 @@
       if(!started||paused||ended||player.type===type||!vehicleStats[type])return;
       saveVehiclePosition();storeUnit();
       if(!activateUnit(type)){showToast("UNIDADE DESTRUÍDA");return}
-      clearInput();drawRoster();updateVehicleButtons();updateHUD();showToast("UNIDADE ATIVA · "+vehicleStats[type].name);
+      aapStrategicMode=type==="artillery";aapAimPoint=null;aapMarker.visible=false;
+      clearInput();drawRoster();updateVehicleButtons();updateHUD();
+      showToast(type==="sub"?"SUBMARINO · CÂMERA SUBAQUÁTICA · Q SOBE / E DESCE":
+        type==="artillery"?"AAP · MODO ARTILHARIA · V ALTERNA CÂMERA":
+        "UNIDADE ATIVA · "+vehicleStats[type].name);
     }
 
     function updateVehicleButtons() {
@@ -2643,6 +2696,13 @@
       }
 
       const stats = vehicleStats[player.type];
+      if(player.type==="artillery"&&aapStrategicMode){
+        const anchor=player.group.position;
+        const strategic=new THREE.Vector3(anchor.x+5,anchor.y+210,anchor.z+30);
+        camera.position.lerp(strategic,Math.min(1,dt*6));
+        camera.lookAt(anchor.x,anchor.y,anchor.z-90);
+        return;
+      }
       const distance = stats.cameraDistance;
       const desired = new THREE.Vector3(
         player.group.position.x + Math.sin(player.yaw) * distance,
@@ -2676,7 +2736,7 @@
       }
 
       if (event.repeat) return;
-
+      if(started&&!paused&&!ended&&event.code==="KeyV"){toggleAAPView();return}
       if (started && !paused && !ended) {
         if (event.code === "Digit1") switchVehicle("heli");
         if (event.code === "Digit2") switchVehicle("tank");
@@ -2696,8 +2756,14 @@
       keys[event.code] = false;
     });
 
+    renderer.domElement.addEventListener("pointermove", event=>{
+      if(started&&!paused&&!ended&&aapStrategicMode&&player.type==="artillery")
+        updateAAPAim(event.clientX,event.clientY);
+    });
     renderer.domElement.addEventListener("pointerdown", (event) => {
       if (!started || paused || ended) return;
+      if(event.button===0&&aapStrategicMode&&player.type==="artillery")
+        updateAAPAim(event.clientX,event.clientY);
 
       if (event.button === 0) {
         mouseFire = true;
