@@ -4,6 +4,7 @@ import { findPath } from "./navigation.mjs";
 import { seatList,normalizeCrew,boardCrew,leaveCrew,crewSeat,nextAvailableSeat } from "./crew.mjs";
 import { COMBAT,canEngage,selectCombatTarget,applyDamage,calculateScore,assignSquadOrder,validateOrder } from "./combat.mjs";
 import { hasLineOfSight } from "./navigation.mjs";
+import { FORMATIONS,formationDestination } from "./formation.mjs";
 
 // WMK Unit Control Lab v0.3.0 — protótipo isolado, sem alterar o jogo principal.
 // Entidade, controle e assento são conceitos separados. O mundo nunca é reiniciado ao trocar.
@@ -113,6 +114,7 @@ const entities=new Map();
 let activeId="soldier-001",lastSoldierId="soldier-001",currentSeat="foot",cameraYaw=0,cameraPitch=.22;
 let mouseDown=false, paused=false, mapOpen=false,selectedMapId="tank-001",mapTarget=[0,0,0], missionKills=0;
 let missionScore=0,squadSelection=new Set(["soldier-002","tank-001"]),combatLog=[];
+let squadFormation="wedge";
 let last=performance.now(),elapsed=0,toastTime=0,shotEffects=[];
 const keys=new Set(),saveKey="wmk-unit-control-lab-v030",panelKey="wmk-unit-control-layout-v030";
 const vec=(p)=>new THREE.Vector3(...p),forward=y=>new THREE.Vector3(-Math.sin(y),0,-Math.cos(y));
@@ -142,7 +144,7 @@ function notice(txt){$("notice").textContent=txt;toastTime=4}
 function isVehicle(e){return e?.kind==="tank"||e?.kind==="heli"}
 function person(){return entities.get(lastSoldierId)||entities.get("soldier-001")}
 function unitState(e){const {group,aiTime,jumpTime,navPath,navDestination,navStatus,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
-function snapshot(){return {schemaVersion:1,labVersion:"0.3.3",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],units:[...entities.values()].map(unitState)}}
+function snapshot(){return {schemaVersion:1,labVersion:"0.3.4",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],squadFormation,units:[...entities.values()].map(unitState)}}
 function loadSnapshot(data){
   if(!data||data.schemaVersion!==1||!Array.isArray(data.units)||data.units.length<3||data.units.length>20)throw Error("Arquivo não é um save WMK válido");
   const seen=new Set(),updated=data.units.map(x=>validateUnit(x));
@@ -170,12 +172,14 @@ function loadSnapshot(data){
   missionKills=Math.max(0,Math.floor(safeNumber(data.missionKills,0,10000)));
   missionScore=Math.max(0,Math.floor(safeNumber(data.missionScore,0,10000000)));
   squadSelection=new Set((Array.isArray(data.squadSelection)?data.squadSelection:[]).filter(id=>entities.get(id)?.faction==="allies"));
+  squadFormation=FORMATIONS.includes(data.squadFormation)?data.squadFormation:"wedge";
+  const formationControl=document.getElementById("squad-formation");if(formationControl)formationControl.value=squadFormation;
   for(const enemy of entities.values())if(enemy.faction==="enemy"&&enemy.kind==="target"&&enemy.health>0&&enemy.ammo===0)enemy.ammo=500;
   renderControls();renderCrewPanel();renderSquadPanel();
 }
 function saveLocal(){try{localStorage.setItem(saveKey,JSON.stringify(snapshot()));notice("Batalha salva neste navegador")}catch(e){notice("Não foi possível salvar: "+e.message)}}
 function download(text,name){const href=URL.createObjectURL(new Blob([text],{type:"application/json"}));const a=document.createElement("a");a.href=href;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(href),2000)}
-$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v033.json");
+$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v034.json");
 $("import").onclick=()=>$("file").click();$("file").onchange=async ev=>{const file=ev.target.files?.[0];if(!file)return;try{if(file.size>250000)throw Error("Máximo 250 KB");loadSnapshot(JSON.parse(await file.text()));notice("Batalha importada")}catch(e){notice("Falha na importação: "+e.message)}finally{ev.target.value=""}};
 $("reset").onclick=()=>{if(!confirm("Reiniciar o laboratório e perder as alterações não exportadas?"))return;try{localStorage.removeItem(saveKey)}catch{}location.reload()};
 try{const saved=localStorage.getItem(saveKey);if(saved)loadSnapshot(JSON.parse(saved))}catch(e){console.warn("Save ignorado",e);notice("Save antigo inválido; usando cenário padrão")}
@@ -289,6 +293,8 @@ function renderSquadPanel(){
   const targets=document.getElementById("squad-target");
   if(!root||!targets)return;
   const selectedTarget=targets.value;
+  const formationControl=document.getElementById("squad-formation");
+  if(formationControl)formationControl.value=squadFormation;
   root.replaceChildren();
   for(const e of entities.values())if(e.faction==="allies"){
     const label=document.createElement("label"),input=document.createElement("input");
@@ -323,6 +329,7 @@ function giveSquadOrder(order){
   notice("Ordem de esquadrão "+order.toUpperCase()+" para "+ids.length+" unidades.");
   renderControls();
 }
+$("squad-formation").onchange=()=>{squadFormation=FORMATIONS.includes($("squad-formation").value)?$("squad-formation").value:"wedge";notice("Formação alterada: "+squadFormation)};
 for(const button of document.querySelectorAll("[data-squad-order]"))button.onclick=()=>giveSquadOrder(button.dataset.squadOrder);
 function setOrder(id,order,destination){
   const e=entities.get(id);if(!e||e.faction!=="allies")return;
@@ -581,12 +588,15 @@ function botUpdate(e,dt){
   let target=following?active().group.position.toArray():attacking?designated.group.position.toArray():e.target;
   if(!Array.isArray(target))return;
   let targetX=target[0],targetZ=target[2];
-  if(following&&isVehicle(active())){
-    // Não encaminhar soldado ao centro de um tanque ou da aeronave.
-    targetX+=Math.cos(active().group.rotation.y)*12;
-    targetZ-=Math.sin(active().group.rotation.y)*12;
-  }else if(following){
-    targetX+=3;targetZ+=3;
+  if(following){
+    const index=[...squadSelection].filter(id=>id!==activeId&&entities.get(id)?.faction==="allies").indexOf(e.id);
+    if(index>=0){
+      const desired=formationDestination({x:active().group.position.x,z:active().group.position.z,yaw:active().group.rotation.y},index,squadFormation,e.kind==="tank"?13:7);
+      targetX=desired.x;targetZ=desired.z;
+    }else if(isVehicle(active())){
+      targetX+=Math.cos(active().group.rotation.y)*12;
+      targetZ-=Math.sin(active().group.rotation.y)*12;
+    }else{targetX+=3;targetZ+=3}
   }
   const distance=Math.hypot(targetX-p.x,targetZ-p.z);
   const threshold=following?5:attacking?Math.min(25,COMBAT[e.kind]?.range*.45||12):3;
