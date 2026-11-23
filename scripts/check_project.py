@@ -81,6 +81,14 @@ for symbol in ("updateBotCombat(", "dealDamage(", "giveSquadOrder(", "addCombatL
 assert 'from "./combat.mjs"' in lab_js
 assert (root / "src" / "lab" / "mission.mjs").is_file()
 mission_html=(root / "mission-editor.html").read_text(encoding="utf-8")
+assert (root / "src" / "lab" / "scenery.mjs").is_file()
+assert (root / "tests" / "scenery.test.mjs").is_file()
+for key in ('id="mode-props"','id="add-prop"','id="clone-prop"','id="prop-list"','id="prop-properties"'):
+    assert key in mission_html, f"Editor de mapa incompleto: {key}"
+assert 'from "./src/lab/scenery.mjs"' in mission_html
+assert 'from "./scenery.mjs"' in lab_js
+for symbol in ("renderProps(", "buildingsNow(", "propBlockers("):
+    assert symbol in lab_js, f"Colisão de cenário não integrada: {symbol}"
 assert (root / "src" / "lab" / "scenario.mjs").is_file()
 assert (root / "tests" / "scenario.test.mjs").is_file()
 for key in ('id="add-unit"','id="clone-unit"','id="unit-list"','id="unit-properties"','id="mode-units"'):
