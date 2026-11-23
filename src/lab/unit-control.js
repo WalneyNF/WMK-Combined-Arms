@@ -101,7 +101,9 @@ const defaults=[
 {id:"tank-001",kind:"tank",name:"Tanque Sherman (protótipo)",faction:"allies",health:230,maxHealth:230,position:[25,0,-5],yaw:0,speed:0,ammo:38,reserve:85,reload:0,cooldown:0,order:"hold",target:[25,0,-5],seat:null},
 {id:"heli-001",kind:"heli",name:"Helicóptero de apoio",faction:"allies",health:160,maxHealth:160,position:[-40,13,-8],yaw:0,speed:0,ammo:260,reserve:500,reload:0,cooldown:0,order:"patrol",target:[-40,13,-55],seat:null},
 {id:"enemy-001",kind:"target",name:"Alvo Hostil A",faction:"enemy",health:95,maxHealth:95,position:[-8,0,-95],yaw:0,speed:0,ammo:500,reserve:0,reload:0,cooldown:0,order:"hold",target:[-8,0,-95],seat:null},
-{id:"enemy-002",kind:"target",name:"Alvo Hostil B",faction:"enemy",health:95,maxHealth:95,position:[50,0,-113],yaw:0,speed:0,ammo:500,reserve:0,reload:0,cooldown:0,order:"hold",target:[50,0,-113],seat:null}
+{id:"enemy-002",kind:"target",name:"Alvo Hostil B",faction:"enemy",health:95,maxHealth:95,position:[50,0,-113],yaw:0,speed:0,ammo:500,reserve:0,reload:0,cooldown:0,order:"hold",target:[50,0,-113],seat:null},
+{id:"enemy-soldier-001",kind:"soldier",name:"Patrulha Hostil 1",faction:"enemy",health:95,maxHealth:95,position:[-28,0,-123],yaw:0,speed:0,ammo:30,reserve:90,reload:0,cooldown:0,order:"attack",target:[0,0,24],seat:null},
+{id:"enemy-soldier-002",kind:"soldier",name:"Patrulha Hostil 2",faction:"enemy",health:95,maxHealth:95,position:[40,0,-127],yaw:0,speed:0,ammo:30,reserve:90,reload:0,cooldown:0,order:"attack",target:[0,0,24],seat:null}
 ];
 const defs={soldier:{maxSpeed:8,run:1.7,acceleration:12,turn:8,damage:13,rate:.13,magazine:30,reloadTime:1.6,range:180},
 tank:{maxSpeed:19,run:1.2,acceleration:3.5,turn:1.1,damage:68,rate:1.3,magazine:38,reloadTime:2.8,range:280},
@@ -566,10 +568,15 @@ function botUpdate(e,dt){
   if(e.order==="hold"){e.navPath=[];e.navStatus="parado";return}
   const following=e.order==="follow";
   const attacking=e.order==="attack";
-  const designated=attacking?entities.get(e.designatedTargetId):null;
+  let designated=attacking?entities.get(e.designatedTargetId):null;
   if(attacking&&(!designated||designated.health<=0)){
-    e.order="defend";e.designatedTargetId=null;e.navPath=[];
-    return;
+    const candidates=[...entities.values()].filter(u=>u.faction!==e.faction&&u.health>0&&!u.aboard);
+    candidates.sort((a,b)=>e.group.position.distanceToSquared(a.group.position)-e.group.position.distanceToSquared(b.group.position));
+    designated=candidates[0]||null;
+    e.designatedTargetId=designated?.id||null;
+  }
+  if(attacking&&!designated){
+    e.navPath=[];e.navStatus="sem adversários";return;
   }
   let target=following?active().group.position.toArray():attacking?designated.group.position.toArray():e.target;
   if(!Array.isArray(target))return;
@@ -616,7 +623,7 @@ function botUpdate(e,dt){
     collide(e);
     e.group.rotation.y=Math.atan2(-dx,-dz);
   }
-  if(e.kind==="tank")p.y=0;
+  if(e.kind==="tank"||e.kind==="soldier")p.y=0;
 }
 function updateVehicle(e,dt){
   if(e.id!==activeId){botUpdate(e,dt);return}
