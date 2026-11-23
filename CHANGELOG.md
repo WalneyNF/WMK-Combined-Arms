@@ -1,5 +1,16 @@
 # Histórico de alterações
 
+## [0.3.2-lab] — 2026-11-23 (experimental, laboratório separado)
+
+- Navegação A* em grade com desvio de construções e tanques estacionados.
+- Suavização de rotas, prevenção de corte de cantos e replanejamento limitado.
+- Traçado da rota no mapa tático M para a unidade selecionada.
+- Postos de tanque e helicóptero com ocupantes individuais e validação de duplicidade.
+- Painel móvel de tripulação com troca de posto e impedimento de sobrescrita de ocupantes.
+- Persistência dos ocupantes no JSON; migração de saves antigos.
+- Testes unitários de navegação, tripulação e colisões executados no GitHub Actions.
+- Limites: sem pathfinding 3D, IA de combate, animação de tripulantes, física rígida ou integração ao jogo principal.
+
 ## [0.3.1-lab] — 2026-11-23 (experimental)
 - Segundo soldado aliado independente, selecionável pela tecla 4, com ordem padrão Seguir.
 - Colisão 2D simples para edificações e blindados; evita atravessar volumes.
