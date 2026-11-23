@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WMK Map Builder 3D v0.3.8</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"}}</script>
+<style>
+:root{color-scheme:dark;--bg:#081923;--panel:#0c2633e8;--line:#416575;--a:#72e2c1;--txt:#effbf6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.4 system-ui,Arial;overflow:hidden}button,input,select{background:#173946;color:inherit;border:1px solid #52727c;border-radius:5px;padding:8px;font:inherit}button{cursor:pointer}button:hover{border-color:var(--a)}button.active{background:#2d7166}
+header{position:fixed;z-index:5;left:8px;right:8px;top:7px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:#061823eb;border:1px solid #365f61;padding:6px;border-radius:8px}header b{color:var(--a);letter-spacing:.07em;padding:0 8px}header a{color:var(--a);margin:0 6px}
+#view{position:fixed;inset:0}#view canvas{display:block}aside{position:fixed;top:65px;bottom:32px;left:10px;width:250px;z-index:4;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px;resize:both;min-width:190px;min-height:160px}
+h2{font-size:12px;color:var(--a);margin:10px 0}label{display:block;color:#b8d4d1;margin:9px 0 3px}input,select{width:100%}.entry{display:block;width:100%;text-align:left;margin:4px 0}.entry small{display:block;opacity:.65}#status{position:fixed;z-index:6;bottom:12px;left:50%;transform:translateX(-50%);max-width:90vw;background:#08232fe8;border:1px solid #3f8d7f;border-radius:6px;padding:7px 14px;color:#d4f1e5;text-align:center;pointer-events:none}#details{white-space:pre-wrap;font-family:monospace;color:#c4e6df;font-size:11px}
+footer{position:fixed;bottom:0;right:8px;color:#a8c8c5;font-size:10px;z-index:4;background:#061621b0}
+@media(max-width:680px){aside{width:192px;top:105px}header{font-size:11px}header button{padding:5px}}
+</style></head><body>
+<div id="view"></div>
+<header><b>WMK MAP BUILDER 3D · v0.3.8</b><button id="move" class="active">Mover (G)</button><button id="rotate">Rotacionar (R)</button><button id="scale">Escalar (S)</button>
+<button id="duplicate">Duplicar (Ctrl+D)</button><button id="delete">Excluir</button><button id="save">Salvar (Ctrl+S)</button>
+<button id="export">Exportar JSON</button><a href="mission-editor.html">Voltar ao Mission Studio</a></header>
+<aside><h2>CONSTRUÇÕES · CENÁRIO</h2><label>Novo objeto<select id="new-kind"><option value="building">Edificação</option><option value="wall">Muro</option><option value="crate">Caixa</option><option value="tower">Torre</option><option value="barrier">Barreira</option></select></label><button id="add">+ Criar objeto</button>
+<div id="objects"></div><h2>OBJETO SELECIONADO</h2><div id="details">Selecione um objeto na cena ou na lista.</div><label>Precisão do gizmo<select id="snap"><option value="1">1 metro / 15°</option><option value="0.5">0,5 metro / 15°</option><option value="0">Livre</option></select></label><h2>CONTROLES</h2><p>Arraste os eixos coloridos do gizmo para mover, girar ou redimensionar. Clique num objeto para selecioná-lo. Mouse esquerdo na área livre gira a câmera, scroll aproxima e mouse direito desloca a visão. Teclas G, R, S, Delete, Ctrl+D, Ctrl+S.</p><p>A edição utiliza os mesmos <code>props</code> em JSON do WMK Mission Studio. Volte ao editor de missões para configurar soldados e objetivos.</p></aside>
+<div id="status" role="status">Pronto: selecione um objeto para editar seus eixos X, Y e Z.</div>
+<footer>Walney Moreira Klein — walneyk@hotmail.com · Licença MIT</footer>
+<script type="module" src="./src/lab/map-builder-3d.js"></script></body></html>
