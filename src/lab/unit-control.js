@@ -406,27 +406,113 @@ function reloadActive(){
   e.reload=cfg.reloadTime;notice("Recarregando "+e.name);
 }
 const projectiles=[];
+function combatView(e){return {...e,position:e.group.position.toArray()}}
+function visibleCombat(attacker,target){
+  if(attacker.kind==="heli"||target.kind==="heli")return true; // Los aéreo simplificado
+  return hasLineOfSight({x:attacker.group.position.x,z:attacker.group.position.z},
+    {x:target.group.position.x,z:target.group.position.z},
+    {radius:.12,obstacles:obstacles(attacker.id).filter(b=>
+      Math.hypot(b.x-target.group.position.x,b.z-target.group.position.z)>b.radius+.5)});
+}
+function createShot(shooter,direction,{damage,velocity,life=3,color=materials.yellow}={}){
+  const origin=shooter.group.position.clone();
+  origin.y+=shooter.kind==="soldier"?2.15:shooter.kind==="tank"?4.1:shooter.kind==="target"?2.5:1;
+  const bullet=part(scene,new THREE.SphereGeometry(.23,6,4),color,origin.x,origin.y,origin.z);
+  projectiles.push({mesh:bullet,velocity:direction.normalize().multiplyScalar(velocity||120),
+    damage,life,owner:shooter.id,faction:shooter.faction});
+}
 function fire(){
-  const e=active(),cfg=defs[e.kind];if(e.health<=0||e.cooldown>0||e.reload>0||e.ammo<=0||currentSeat==="driver"||currentSeat==="commander")return;
+  const e=active(),cfg=defs[e.kind];
+  if(e.health<=0||e.cooldown>0||e.reload>0||e.ammo<=0||
+      currentSeat==="driver"||currentSeat==="commander")return;
   e.cooldown=cfg.rate;e.ammo--;
-  const forwardDir=forward(cameraYaw).add(new THREE.Vector3(0,Math.tan(cameraPitch)*.35,0)).normalize();
-  const start=e.group.position.clone().add(new THREE.Vector3(0,e.kind==="soldier"?2.1:e.kind==="tank"?4.1:1.0,0));
-  const bullet=part(scene,new THREE.SphereGeometry(.21,6,4),materials.yellow,start.x,start.y,start.z);
-  projectiles.push({mesh:bullet,velocity:forwardDir.multiplyScalar(e.kind==="tank"?105:155),damage:cfg.damage,life:2.6,owner:e.id});
-  if(e.kind==="tank"&&e.group.userData.turret)e.group.userData.turret.rotation.y=cameraYaw-e.group.rotation.y;
+  const dir=forward(cameraYaw).add(new THREE.Vector3(0,Math.tan(cameraPitch)*.35,0)).normalize();
+  createShot(e,dir,{velocity:e.kind==="tank"?105:155,damage:cfg.damage});
+  if(e.kind==="tank"&&e.group.userData.turret)
+    e.group.userData.turret.rotation.y=cameraYaw-e.group.rotation.y;
+}
+function onDestroyed(target,owner){
+  target.group.visible=false;
+  if(target.faction==="enemy"){missionKills++;addCombatLog(target.name+" neutralizado por "+(owner?.name||"desconhecido"))}
+  else addCombatLog("ALIADO PERDIDO · "+target.name);
+  if(owner){owner.kills=(owner.kills||0)+1}
+  if(target.kind==="tank"||target.kind==="heli"){
+    for(const occupantId of Object.values(target.crew||{})){
+      const occupant=entities.get(occupantId);
+      if(!occupant)continue;
+      occupant.aboard=null;occupant.aboardSeat=null;
+      const safe=resolveGroundPosition(target.group.position.x+9,target.group.position.z+9,.8,obstacles(target.id));
+      occupant.group.position.set(safe.x,0,safe.z);
+      occupant.group.visible=occupant.health>0;
+    }
+    target.crew=normalizeCrew(target.kind,null);
+  }
+  if(target.id===activeId){
+    const replacement=[...entities.values()].find(u=>u.faction==="allies"&&u.health>0&&
+      u.kind==="soldier"&&!u.aboard) || [...entities.values()].find(u=>u.faction==="allies"&&u.health>0);
+    if(replacement){activeId=replacement.id;currentSeat=replacement.kind==="soldier"?"foot":replacement.kind==="tank"?"driver":"pilot";
+      if(replacement.kind==="soldier")lastSoldierId=replacement.id;
+      renderControls();renderCrewPanel();
+      notice("Unidade perdida! Assumindo "+replacement.name);
+    }else{mouseDown=false;notice("SEM UNIDADES ALIADAS · Reinicie o laboratório.");}
+  }
+  renderSquadPanel();
+}
+function dealDamage(target,amount,owner){
+  if(target.health<=0)return;
+  const result=applyDamage(target,amount);
+  target.health=result.health;
+  if(owner){
+    const score=calculateScore({damage:result.applied,killed:result.destroyed,kind:target.kind});
+    owner.score=(owner.score||0)+score;
+    if(owner.faction==="allies")missionScore+=score;
+  }
+  if(result.destroyed)onDestroyed(target,owner);
 }
 function updateShots(dt){
   for(let i=projectiles.length-1;i>=0;i--){
     const p=projectiles[i],before=p.mesh.position.clone(),after=before.clone().addScaledVector(p.velocity,dt);
     p.mesh.position.copy(after);p.life-=dt;
     let hit=null;
-    for(const e of entities.values())if(e.faction==="enemy"&&e.health>0){
-      const center=e.group.position.clone().add(new THREE.Vector3(0,2,0));
-      const segment=new THREE.Line3(before,after),closest=new THREE.Vector3();segment.closestPointToPoint(center,true,closest);
-      if(closest.distanceTo(center)<3.1){hit=e;break}
+    const segment=new THREE.Line3(before,after),closest=new THREE.Vector3();
+    for(const e of entities.values()){
+      if(e.faction===p.faction||e.health<=0||e.aboard||e.id===p.owner)continue;
+      const center=e.group.position.clone();
+      center.y+=e.kind==="soldier"?1.7:e.kind==="tank"?2.5:e.kind==="target"?2:0;
+      segment.closestPointToPoint(center,true,closest);
+      const radius=e.kind==="soldier"?1.2:e.kind==="tank"?4.6:e.kind==="heli"?3.3:3.1;
+      if(closest.distanceTo(center)<=radius){hit=e;break}
     }
-    if(hit){hit.health=Math.max(0,hit.health-p.damage);if(hit.health<=0){missionKills++;hit.group.visible=false;notice("ALVO DESTRUÍDO · "+hit.name)}p.life=0}
-    if(p.life<=0||after.y<0||after.length()>450){scene.remove(p.mesh);p.mesh.geometry.dispose();projectiles.splice(i,1)}
+    if(hit){dealDamage(hit,p.damage,entities.get(p.owner));p.life=0}
+    if(p.life<=0||after.y<-.5||Math.hypot(after.x,after.z)>350){
+      scene.remove(p.mesh);p.mesh.geometry.dispose();projectiles.splice(i,1)
+    }
+  }
+}
+function updateBotCombat(dt){
+  for(const bot of entities.values()){
+    if(bot.health<=0||bot.aboard||bot.id===activeId)continue;
+    if(bot.faction==="allies"&&!["attack","defend","follow","patrol"].includes(bot.order))continue;
+    const cfg=COMBAT[bot.kind];if(!cfg||cfg.range<=0||bot.ammo<=0||bot.reload>0||bot.cooldown>0)continue;
+    const possible=[...entities.values()].filter(e=>e.faction!==bot.faction&&e.health>0);
+    const target=selectCombatTarget(combatView(bot),possible.map(combatView),{
+      designatedTargetId:bot.designatedTargetId,
+      visibility:(_,t)=>visibleCombat(bot,entities.get(t.id))
+    });
+    if(!target)continue;
+    const enemy=entities.get(target.id);
+    const origin=bot.group.position.clone(),aim=enemy.group.position.clone();
+    aim.y+=enemy.kind==="soldier"?1.5:enemy.kind==="tank"?2.5:enemy.kind==="target"?2:0;
+    origin.y+=bot.kind==="soldier"?2.15:bot.kind==="tank"?4.1:bot.kind==="target"?2.5:1;
+    const direction=aim.sub(origin);
+    if(direction.lengthSq()<.1)continue;
+    bot.cooldown=cfg.interval;bot.ammo--;
+    createShot(bot,direction,{damage:cfg.damage,velocity:cfg.velocity,
+      color:bot.faction==="enemy"?materials.enemy:materials.yellow});
+    if(bot.kind==="tank"&&bot.group.userData.turret){
+      const desired=Math.atan2(-direction.x,-direction.z);
+      bot.group.userData.turret.rotation.y=desired-bot.group.rotation.y;
+    }
   }
 }
 function updateSoldier(e,dt,now){
@@ -555,7 +641,7 @@ function updateHUD(){
     " · HP "+Math.ceil(e.health)+"/"+e.maxHealth+
     " · MUNIÇÃO "+e.ammo+"/"+e.reserve+
     " · "+(e.reload>0?"RECARREGANDO":"PRONTO")+
-    " · ALVOS "+missionKills+"/2";
+    " · ALVOS "+missionKills+"/2 · PONTOS "+missionScore;
   $("debug-text").innerHTML="<b>Ativo:</b> "+e.id+"<br><b>Posto:</b> "+currentSeat+
     "<br><b>Controlador:</b> jogador"+
     "<br><b>Posição:</b> "+e.group.position.toArray().map(v=>v.toFixed(1)).join(", ")+
@@ -564,6 +650,7 @@ function updateHUD(){
     "<br><b>Bot tanque:</b> "+(activeId==="tank-001"?"jogador":entities.get("tank-001").order)+
     "<br><b>Bot helicóptero:</b> "+(activeId==="heli-001"?"jogador":entities.get("heli-001").order)+
     "<br><b>IA selecionada:</b> "+(entities.get(selectedMapId)?.navStatus||"sem navegação")+
+    "<br><b>Eliminações:</b> "+(e.kills||0)+" · Pontos: "+(e.score||0)+
     "<br><b>FPS:</b> "+Math.round(1/Math.max(.0001,frameDt));
   const near=e.kind==="soldier"?nearestVehicle():null;
   if(near&&toastTime<=0)$("notice").textContent="Pressione E para entrar em "+near.name;
@@ -581,6 +668,7 @@ function animate(now){
     else if(isVehicle(e))updateVehicle(e,dt);
   }
   if(mouseDown&&!mapOpen)fire();
+  updateBotCombat(dt);
   updateShots(dt);
   updateCamera(dt);renderer.render(scene,camera);
   debugTimer+=dt;if(debugTimer>.25){updateHUD();if(mapOpen)renderMap();debugTimer=0}
