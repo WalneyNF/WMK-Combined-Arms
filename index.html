@@ -1592,6 +1592,47 @@
         addPart(group, new THREE.BoxGeometry(0.2, 0.22, 1.8), metalMaterial, [0, 0.56, 1.86]);
       }
 
+
+      // Novos modelos básicos 3D — cada classe possui sua própria malha procedural.
+      if(type==="soldier"){
+        addPart(group,new THREE.CylinderGeometry(.4,.48,1.45,10),bodyMaterial,[0,1.5,0]);
+        addPart(group,new THREE.SphereGeometry(.46,12,8),trimMaterial,[0,2.54,0]);
+        for(const side of [-1,1]){
+          addPart(group,new THREE.BoxGeometry(.29,1.1,.32),darkMaterial,[side*.32,.56,0]);
+          addPart(group,new THREE.BoxGeometry(.22,1,.28),bodyMaterial,[side*.68,1.63,-.1]);
+        }
+        addPart(group,new THREE.BoxGeometry(.19,.2,1.55),metalMaterial,[.3,1.8,-.85]);
+      }
+      if(type==="artillery"){
+        addPart(group,new THREE.BoxGeometry(4,1.3,6),bodyMaterial,[0,1.2,0]);
+        for(const side of [-1,1])for(const z of [-2,2])
+          addPart(group,new THREE.CylinderGeometry(1.05,1.05,.46,14),darkMaterial,[side*2.3,1,z],[0,0,Math.PI/2]);
+        addPart(group,new THREE.CylinderGeometry(1.4,1.5,.65,12),trimMaterial,[0,2.1,-.5]);
+        addPart(group,new THREE.CylinderGeometry(.28,.4,8,12),metalMaterial,[0,3.2,-4],[Math.PI/2-.2,0,0]);
+      }
+      if(type==="plane"){
+        addPart(group,new THREE.CylinderGeometry(.8,.8,12,12),bodyMaterial,[0,.2,0],[Math.PI/2,0,0]);
+        addPart(group,new THREE.ConeGeometry(.8,2.4,12),trimMaterial,[0,.2,-7],[-Math.PI/2,0,0]);
+        addPart(group,new THREE.BoxGeometry(21,.33,3.1),bodyMaterial,[0,.2,-.2]);
+        addPart(group,new THREE.BoxGeometry(7,.3,2),trimMaterial,[0,.8,5]);
+        addPart(group,new THREE.BoxGeometry(.3,2.8,2.3),trimMaterial,[0,1.9,4.6]);
+        addPart(group,new THREE.SphereGeometry(1,12,8),glassMaterial,[0,1,-2],[0,0,0],[.7,.6,1.8]);
+      }
+      if(type==="sub"){
+        addPart(group,new THREE.CylinderGeometry(1.4,1.4,18,16),bodyMaterial,[0,0,0],[Math.PI/2,0,0]);
+        for(const z of [-9,9])addPart(group,new THREE.SphereGeometry(1.4,12,8),bodyMaterial,[0,0,z]);
+        addPart(group,new THREE.BoxGeometry(1.8,2.1,3.4),trimMaterial,[0,2,0]);
+        addPart(group,new THREE.BoxGeometry(6,.2,2.7),darkMaterial,[0,0,7]);
+        addPart(group,new THREE.BoxGeometry(.3,3,2.1),darkMaterial,[0,0,8.3]);
+      }
+      if(type==="apc"){
+        addPart(group,new THREE.BoxGeometry(4.4,2.2,8),bodyMaterial,[0,1.6,0]);
+        addPart(group,new THREE.BoxGeometry(3.4,.8,4.5),trimMaterial,[0,3,0]);
+        for(const side of [-1,1])for(const z of [-2.8,0,2.8])
+          addPart(group,new THREE.CylinderGeometry(.85,.85,.5,12),darkMaterial,[side*2.3,.95,z],[0,0,Math.PI/2]);
+        addPart(group,new THREE.CylinderGeometry(.9,.9,.5,12),darkMaterial,[0,3.55,-.5]);
+        addPart(group,new THREE.CylinderGeometry(.12,.16,3,8),metalMaterial,[0,3.65,-2.4],[Math.PI/2,0,0]);
+      }
       return group;
     }
 
@@ -1626,7 +1667,10 @@
     const vehiclePositions = {
       heli: { x: -35, z: 220, yaw: 0, altitude: 42 },
       tank: { x: -35, z: 220, yaw: 0 },
-      ship: { x: 100, z: 500, yaw: 0 }
+      ship: { x:100,z:500,yaw:0 },
+      soldier:{x:-145,z:54,yaw:0}, artillery:{x:-95,z:83,yaw:0},
+      plane:{x:102,z:105,yaw:0,altitude:70},
+      sub:{x:150,z:535,yaw:0,depth:8}, apc:{x:-185,z:36,yaw:0}
     };
 
     const player = {
@@ -1691,7 +1735,12 @@
         boost: 1.25,
         cameraDistance: 46,
         cameraHeight: 18
-      }
+      },
+      soldier:{name:"SOLDADO",weapon:"FUZIL",description:"INFANTARIA · TERCEIRA PESSOA",maxSpeed:8,response:9,turn:2.7,rate:.16,damage:8,shotSpeed:180,boost:1.5,cameraDistance:10,cameraHeight:5,maxHp:100},
+      artillery:{name:"ARTILHARIA",weapon:"OBUSEIRO",description:"FOGO DE APOIO",maxSpeed:8,response:1.4,turn:.48,rate:2.9,damage:95,shotSpeed:125,boost:1.15,cameraDistance:40,cameraHeight:19,maxHp:150},
+      plane:{name:"AVIÃO",weapon:"METRALHADORA AÉREA",description:"VOO ARCADE",maxSpeed:110,response:1.8,turn:1.2,rate:.12,damage:10,shotSpeed:235,boost:1.5,cameraDistance:65,cameraHeight:22,maxHp:90},
+      sub:{name:"SUBMARINO",weapon:"TORPEDO",description:"COMBATE SUBMERSO",maxSpeed:26,response:1.45,turn:.65,rate:1.7,damage:58,shotSpeed:95,boost:1.2,cameraDistance:44,cameraHeight:17,maxHp:180},
+      apc:{name:"BLINDADO APC",weapon:"METRALHADORA PESADA",description:"TRANSPORTE BLINDADO",maxSpeed:32,response:3,turn:1.1,rate:.24,damage:13,shotSpeed:170,boost:1.3,cameraDistance:32,cameraHeight:12,maxHp:170}
     };
 
     const enemyDefinitions = [
