@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "wmk-ship-001",
+  "type": "ship",
+  "name": "NAVIO DE COMBATE",
+  "weapon": "CANHÃO NAVAL",
+  "description": "BATERIA DE CONVÉS · ALTO CALIBRE",
+  "maxSpeed": 34,
+  "response": 1.9,
+  "turn": 0.8,
+  "rate": 0.55,
+  "damage": 31,
+  "shotSpeed": 142,
+  "boost": 1.25,
+  "cameraDistance": 46,
+  "cameraHeight": 18,
+  "maxHp": 100,
+  "spawn": {
+    "x": 100,
+    "z": 500,
+    "yaw": 0
+  },
+  "category": "naval",
+  "model": {
+    "kind": "procedural",
+    "asset": null
+  },
+  "controls": {
+    "forward": "W",
+    "reverse": "S",
+    "left": "A",
+    "right": "D",
+    "fire": "Space",
+    "secondary": "F",
+    "ascend": null,
+    "descend": null
+  }
+}
