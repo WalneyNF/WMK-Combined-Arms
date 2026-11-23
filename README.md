@@ -26,6 +26,7 @@ Use um servidor HTTP: `py -m http.server 4173` e acesse `http://localhost:4173/`
 - [Projeto do editor de mapas](manuais/editor-mapas.html)
 - [Projeto do editor de missões](manuais/editor-missoes.html)
 - [Veículos e IA](manuais/veiculos-e-ia.html)
+- [Controle dinâmico de unidades — arquitetura](manuais/sistema-unidades.html)
 
 ## ✅ Recursos disponíveis
 
