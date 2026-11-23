@@ -111,6 +111,7 @@ function bindProperty(root,label,key,type="text",options=[]){
   const value=type==="number"?Number(input.value):input.value;
   if(targetKey==="position")o.position[key==="x"?0:2]=value;
   else o[key]=value;
+  if(key==="id")selectedId=value;
   if(key==="type"&&value==="eliminate"&&!o.targetId)o.targetId="enemy-001";
   if(key==="type"&&(value==="defend"||value==="escort")&&!o.targetId)o.targetId=value==="escort"?"tank-001":"soldier-001";
   renderAll();
