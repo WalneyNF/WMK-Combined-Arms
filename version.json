@@ -1,8 +1,8 @@
 {
   "name": "WMK Combined Arms",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "date": "2026-11-23",
-  "status": "prototype-with-persistent-roster",
+  "status": "gameplay-fixes-soldier-submarine-aap",
   "engine": "Three.js",
   "language": "pt-BR"
 }
