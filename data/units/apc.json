@@ -6,7 +6,7 @@
   "category": "ground",
   "role": "transporte blindado",
   "weapon": "METRALHADORA PESADA",
-  "description": "SUPRESSÃO · ALTA CADÊNCIA",
+  "description": "TRANSPORTE BLINDADO · METRALHADORA PESADA · ESCOLTA",
   "maxSpeed": 32,
   "response": 3,
   "turn": 1.1,
@@ -35,5 +35,10 @@
     "secondary": "F",
     "ascend": null,
     "descend": null
+  },
+  "apc": {
+    "role": "armoured_personnel_carrier",
+    "maxPassengersPlanned": 6,
+    "passengerSystemImplemented": false
   }
 }
