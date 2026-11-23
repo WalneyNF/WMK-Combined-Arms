@@ -39,13 +39,13 @@ export function resolveCircleCircle(x, z, radius, otherX, otherZ, otherRadius) {
   return {x:otherX+dx/distance*minDist,z:otherZ+dz/distance*minDist,collided:true};
 }
 
-export function resolveGroundPosition(x,z,radius,otherUnits=[]) {
+export function resolveGroundPosition(x,z,radius,otherUnits=[],buildings=BUILDINGS) {
   let px=Math.max(-258+radius,Math.min(258-radius,x));
   let pz=Math.max(-258+radius,Math.min(258-radius,z));
   let collided=false;
   for(let iteration=0;iteration<3;iteration++){
     let changed=false;
-    for(const b of BUILDINGS){
+    for(const b of buildings){
       const result=resolveCircleAabb(px,pz,radius,b);
       if(result.collided){px=result.x;pz=result.z;changed=true;collided=true}
     }
@@ -58,12 +58,12 @@ export function resolveGroundPosition(x,z,radius,otherUnits=[]) {
   return {x:px,z:pz,collided};
 }
 
-export function findSafeExit(vehiclePosition,vehicleYaw,otherUnits=[]) {
+export function findSafeExit(vehiclePosition,vehicleYaw,otherUnits=[],buildings=BUILDINGS) {
   const x=vehiclePosition.x,z=vehiclePosition.z;
   const sideX=Math.cos(vehicleYaw),sideZ=-Math.sin(vehicleYaw);
   for(const multiplier of [1,-1,1.7,-1.7]){
     const dist=8*Math.abs(multiplier);
-    const result=resolveGroundPosition(x+sideX*dist*Math.sign(multiplier),z+sideZ*dist*Math.sign(multiplier),.8,otherUnits);
+    const result=resolveGroundPosition(x+sideX*dist*Math.sign(multiplier),z+sideZ*dist*Math.sign(multiplier),.8,otherUnits,buildings);
     if(!result.collided)return {x:result.x,z:result.z};
   }
   return null;
