@@ -9,6 +9,8 @@
 - Painel móvel de tripulação com troca de posto e impedimento de sobrescrita de ocupantes.
 - Persistência dos ocupantes no JSON; migração de saves antigos.
 - Testes unitários de navegação, tripulação e colisões executados no GitHub Actions.
+- Entrada e saída de helicópteros bloqueadas em voo; desembarque de veículos em movimento bloqueado.
+- Bots continuam simulando enquanto o mapa M está aberto.
 - Limites: sem pathfinding 3D, IA de combate, animação de tripulantes, física rígida ou integração ao jogo principal.
 
 ## [0.3.1-lab] — 2026-11-23 (experimental)
