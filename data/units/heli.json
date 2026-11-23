@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "wmk-heli-001",
+  "type": "heli",
+  "name": "HELICÓPTERO",
+  "weapon": "CANHÃO VULCAN",
+  "description": "MUNIÇÃO 20 MM · RAJADA",
+  "maxSpeed": 62,
+  "response": 2.8,
+  "turn": 1.55,
+  "rate": 0.18,
+  "damage": 11,
+  "shotSpeed": 195,
+  "boost": 1.42,
+  "cameraDistance": 58,
+  "cameraHeight": 22,
+  "maxHp": 100,
+  "spawn": {
+    "x": -35,
+    "z": 220,
+    "yaw": 0,
+    "altitude": 42
+  },
+  "category": "aircraft",
+  "model": {
+    "kind": "procedural",
+    "asset": null
+  },
+  "controls": {
+    "forward": "W",
+    "reverse": "S",
+    "left": "A",
+    "right": "D",
+    "fire": "Space",
+    "secondary": "F",
+    "ascend": "Q",
+    "descend": "E"
+  }
+}
