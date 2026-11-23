@@ -6,7 +6,7 @@ import { COMBAT,canEngage,selectCombatTarget,applyDamage,calculateScore,assignSq
 import { hasLineOfSight } from "./navigation.mjs";
 import { FORMATIONS,formationDestination } from "./formation.mjs";
 import { validateMission,startMission,advanceMission,missionProgress,presetMission } from "./mission.mjs";
-import { validateRoster } from "./scenario.mjs";
+import { validateRoster,defaultRoster } from "./scenario.mjs";
 
 // WMK Unit Control Lab v0.3.0 — protótipo isolado, sem alterar o jogo principal.
 // Entidade, controle e assento são conceitos separados. O mundo nunca é reiniciado ao trocar.
@@ -355,10 +355,14 @@ function renderMissionPanel(){
 }
 const missionSelect=document.getElementById("mission-preset");
 if(missionSelect)missionSelect.onchange=()=>{
-  if(missionSelect.value==="custom"){
-    try{loadMissionDefinition(validateMission(JSON.parse(localStorage.getItem("wmk-ca-mission-v035")||"null")))}
-    catch(e){notice("Crie e salve uma missão no editor: "+e.message)}
-  }else loadMissionDefinition(presetMission(missionSelect.value));
+  try{
+    const definition=missionSelect.value==="custom"?
+      validateMission(JSON.parse(localStorage.getItem("wmk-ca-mission-v035")||"null")):
+      {...presetMission(missionSelect.value),units:defaultRoster()};
+    if(!definition.units)throw Error("O arquivo não contém unidades. Abra no editor e salve novamente.");
+    if(!confirm("Iniciar missão e reiniciar todas as unidades deste cenário?")){renderMissionPanel();return}
+    applyScenario(definition);
+  }catch(e){notice("Falha ao carregar missão: "+e.message);renderMissionPanel()}
 };
 const missionReset=document.getElementById("mission-restart");
 if(missionReset)missionReset.onclick=()=>loadMissionDefinition(missionState.definition);
