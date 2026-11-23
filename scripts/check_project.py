@@ -68,6 +68,14 @@ for symbol in ("findPath(", "renderCrewPanel(", "boardCrew(", "leaveCrew(", "nex
 for test_file in ("movement.test.mjs","navigation.test.mjs","crew.test.mjs"):
     assert (root / "tests" / test_file).is_file()
 
+# v0.3.3 — combate e esquadrões testados de forma separada.
+assert (root / "src" / "lab" / "combat.mjs").is_file()
+assert (root / "tests" / "combat.test.mjs").is_file()
+for control in ("squad-members","squad-target","combat-log","map-attack"):
+    assert f'id="{control}"' in lab_html, f"Controle de esquadra ausente: {control}"
+for symbol in ("updateBotCombat(", "dealDamage(", "giveSquadOrder(", "addCombatLog("):
+    assert symbol in lab_js, f"Combate não integrado: {symbol}"
+assert 'from "./combat.mjs"' in lab_js
 try:
     check_lab=subprocess.run(["node","--check","--input-type=module"],input=lab_js,text=True,capture_output=True,check=False)
 except FileNotFoundError:
