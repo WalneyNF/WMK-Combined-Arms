@@ -166,7 +166,7 @@ function assume(id,fromBoard=false){
   renderControls();notice("Assumiu "+e.name+" · "+(currentSeat==="foot"?"a pé":currentSeat));
 }
 function disembark(){
-  const vehicle=entities.get(person().aboard||activeId);
+  const vehicle=person().aboard?entities.get(person().aboard):null;
   if(vehicle&&isVehicle(vehicle)){
     const side=new THREE.Vector3(Math.cos(vehicle.group.rotation.y),0,-Math.sin(vehicle.group.rotation.y));
     const pos=vehicle.group.position.clone().addScaledVector(side,vehicle.kind==="tank"?7:9);
@@ -199,6 +199,7 @@ function setOrder(id,order,destination){
   notice("Ordem "+order.toUpperCase()+" para "+e.name);renderControls();
 }
 for(const button of document.querySelectorAll("[data-order]"))button.onclick=()=>setOrder($("order-target").value,button.dataset.order);
+$("order-target").onchange=()=>{selectedMapId=$("order-target").value};
 $("goto").onclick=()=>{selectedMapId=$("order-target").value;setOrder(selectedMapId,"patrol",mapTarget);notice("Destino marcado: veja o mapa M")};
 $("quality").onchange=()=>{const q=$("quality").value;renderer.setPixelRatio(Math.min(devicePixelRatio,q==="baixo"?.7:q==="alto"?1.8:1.15));renderer.shadowMap.enabled=q==="alto"};
 $("quality").dispatchEvent(new Event("change"));
@@ -263,7 +264,7 @@ function reloadActive(){
 }
 const projectiles=[];
 function fire(){
-  const e=active(),cfg=defs[e.kind];if(e.health<=0||e.cooldown>0||e.reload>0||e.ammo<=0||currentSeat==="driver"||currentSeat==="pilot"||currentSeat==="commander")return;
+  const e=active(),cfg=defs[e.kind];if(e.health<=0||e.cooldown>0||e.reload>0||e.ammo<=0||currentSeat==="driver"||currentSeat==="commander")return;
   e.cooldown=cfg.rate;e.ammo--;
   const forwardDir=forward(cameraYaw).add(new THREE.Vector3(0,Math.tan(cameraPitch)*.35,0)).normalize();
   const start=e.group.position.clone().add(new THREE.Vector3(0,e.kind==="soldier"?2.1:e.kind==="tank"?4.1:1.0,0));
