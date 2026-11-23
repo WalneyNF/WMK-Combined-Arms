@@ -81,6 +81,15 @@ for symbol in ("updateBotCombat(", "dealDamage(", "giveSquadOrder(", "addCombatL
 assert 'from "./combat.mjs"' in lab_js
 assert (root / "src" / "lab" / "mission.mjs").is_file()
 mission_html=(root / "mission-editor.html").read_text(encoding="utf-8")
+# v0.3.8: página 3D e controlador carregável, sem 404.
+map_builder_html=(root/"map-builder-3d.html").read_text(encoding="utf-8")
+map_builder_js=(root/"src"/"lab"/"map-builder-3d.js").read_text(encoding="utf-8")
+assert '<!DOCTYPE html>' in map_builder_html
+assert 'src="./src/lab/map-builder-3d.js"' in map_builder_html
+assert "new TransformControls" in map_builder_js
+assert (root/"tests"/"map_builder_contract.test.mjs").is_file()
+assert (root/"tests"/"patrol.test.mjs").is_file()
+assert (root/"tests"/"main_game_regressions.test.mjs").is_file()
 assert (root / "src" / "lab" / "scenery.mjs").is_file()
 assert (root / "tests" / "scenery.test.mjs").is_file()
 for key in ('id="mode-props"','id="add-prop"','id="clone-prop"','id="prop-list"','id="prop-properties"'):
