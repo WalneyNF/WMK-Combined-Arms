@@ -24,7 +24,13 @@ for file in (root / "data" / "exemplos").glob("*.json"):
     assert data.get("schemaVersion") == 1, f"versão de schema inválida: {file}"
     assert data.get("id"), f"id ausente: {file}"
 version = json.loads((root / "version.json").read_text(encoding="utf-8"))
-assert version["version"] == "0.1.0"
+assert version["version"] == "0.2.0"
+for unit_type in ("heli","tank","ship","soldier","artillery","plane","sub","apc"):
+    unit = json.loads((root / "data" / "units" / (unit_type+".json")).read_text(encoding="utf-8"))
+    assert unit["type"] == unit_type and unit["schemaVersion"] == 1
+    assert unit["maxSpeed"] > 0 and unit["maxHp"] > 0
+    assert f'switchVehicle("{unit_type}")' in index or unit_type in index
+assert "unitRegistry" in index and "storeUnit()" in index
 modules = []
 for html_source in (index, (root / "studio.html").read_text(encoding="utf-8")):
     found = re.findall(r'<script type="module">([\s\S]*?)</script>', html_source)
