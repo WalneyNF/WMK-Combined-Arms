@@ -4,13 +4,15 @@
 
 **Versão:** 0.2.0 · **Autor das adaptações WMK:** Walney Moreira Klein — walneyk@hotmail.com
 
-## 🎮 WMK Unit Control Lab v0.3.6 (experimental)
+## 🎮 WMK Unit Control Lab v0.3.7 (experimental)
 
 **[Abrir laboratório](unit-control-lab.html)** · [Manual completo](manuais/unit-control-lab.html)
 
 Protótipo independente com dois soldados em terceira pessoa, tanque e helicóptero persistentes, entrada/saída com E, postos de veículo por F, disparos de treinamento, comandos básicos a bots, mapa tático M, modo de depuração e save/import/export JSON. Controles: WASD, Shift, mouse/K, E, F, R, Q/C no helicóptero, M para mapa, 1/2/3/4 para assumir unidades remotamente.
 
 > O jogo principal continua na v0.2.0 e permanece preservado. O laboratório v0.3.5 é uma experiência separada: os sistemas ainda não estão integrados ao index.html. Bots possuem navegação A* e combate arcade básico, sem IA estratégica avançada; há colisões simplificadas com construções e veículos terrestres; ainda não há animação física de tripulantes, física realista, multiplayer nem modelos GLB.
+
+**Novidades v0.3.7:** o [WMK Mission Studio](mission-editor.html) ganhou **modo Construções**. Insira edificações, muros, torres, caixas e barreiras, selecione no mapa, ajuste X/Y/Z, rotação, largura, altura, profundidade e colisão. Duplique, exclua e exporte no mesmo JSON da missão. Ao testar, o laboratório cria geometria 3D correspondente e considera os obstáculos no movimento terrestre, na navegação A* e na linha de visão. A colisão usa footprint retangular conservador, não malha física exata. Código `src/lab/scenery.mjs`, testes `tests/scenery.test.mjs`.
 
 **Novidades v0.3.6:** o [Editor de Missões](mission-editor.html) agora possui modo **Unidades / Spawn**, com seleção de soldados, tanques, helicópteros e alvos fixos; escolha de facção aliada/inimiga; propriedades individuais (ID, nome, coordenadas, altitude, rotação, HP, munição e ordem inicial); duplicação com novo ID; exclusão protegida para unidades vinculadas a objetivos; edição de posicionamento clicando no mapa. As entidades são exportadas no JSON e instanciadas realmente no laboratório ao clicar **Testar missão**. Até 40 unidades por cenário, com validação de IDs e vínculos. Arquivos: `src/lab/scenario.mjs`, `tests/scenario.test.mjs`.
 
@@ -30,7 +32,7 @@ Abra [WMK World Studio Beta](studio.html) no servidor HTTP. Crie objetos primiti
 
 ## 📦 ZIP completo de testes
 
-O GitHub Actions gera automaticamente **WMK-Combined-Arms-v0.3.6.zip** após executar as verificações. Acesse [Actions](https://github.com/WalneyNF/WMK-Combined-Arms/actions), abra a execução mais recente concluída e baixe o artefato `WMK-Combined-Arms-v0.3.6-ZIP`. Alternativamente, o [ZIP direto do branch main](https://github.com/WalneyNF/WMK-Combined-Arms/archive/refs/heads/main.zip) contém o projeto integral atualizado.
+O GitHub Actions gera automaticamente **WMK-Combined-Arms-v0.3.7.zip** após executar as verificações. Acesse [Actions](https://github.com/WalneyNF/WMK-Combined-Arms/actions), abra a execução mais recente concluída e baixe o artefato `WMK-Combined-Arms-v0.3.7-ZIP`. Alternativamente, o [ZIP direto do branch main](https://github.com/WalneyNF/WMK-Combined-Arms/archive/refs/heads/main.zip) contém o projeto integral atualizado.
 
 ## ▶️ Jogar
 
