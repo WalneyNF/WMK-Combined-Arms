@@ -343,6 +343,7 @@ $("map-close").onclick=()=>toggleMap(false);
 $("map-assume").onclick=()=>{assume(selectedMapId,false);toggleMap(false)};
 $("map-hold").onclick=()=>setOrder(selectedMapId,"hold");
 $("map-patrol").onclick=()=>setOrder(selectedMapId,"patrol",mapTarget);
+$("map-attack").onclick=()=>{giveSquadOrder("attack");renderMap()};
 function worldToMap(x,z){return [mapCanvas.width/2+x*1.35,mapCanvas.height/2+z*1.35]}
 function mapToWorld(x,y){return [(x-mapCanvas.width/2)/1.35,0,(y-mapCanvas.height/2)/1.35]}
 function renderMap(){
@@ -556,7 +557,13 @@ function botUpdate(e,dt){
   }
   if(e.order==="hold"){e.navPath=[];e.navStatus="parado";return}
   const following=e.order==="follow";
-  let target=following?active().group.position.toArray():e.target;
+  const attacking=e.order==="attack";
+  const designated=attacking?entities.get(e.designatedTargetId):null;
+  if(attacking&&(!designated||designated.health<=0)){
+    e.order="defend";e.designatedTargetId=null;e.navPath=[];
+    return;
+  }
+  let target=following?active().group.position.toArray():attacking?designated.group.position.toArray():e.target;
   if(!Array.isArray(target))return;
   let targetX=target[0],targetZ=target[2];
   if(following&&isVehicle(active())){
@@ -567,9 +574,9 @@ function botUpdate(e,dt){
     targetX+=3;targetZ+=3;
   }
   const distance=Math.hypot(targetX-p.x,targetZ-p.z);
-  const threshold=following?5:3;
+  const threshold=following?5:attacking?Math.min(25,COMBAT[e.kind]?.range*.45||12):3;
   if(distance<=threshold){
-    e.navPath=[];e.navStatus="no destino";
+    e.navPath=[];e.navStatus=attacking?"em alcance":"no destino";
     if(!following&&e.order==="patrol")e.target=[-e.target[0],e.target[1],-e.target[2]];
     return;
   }
