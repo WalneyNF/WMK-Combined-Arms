@@ -6,7 +6,7 @@
   "category": "naval",
   "role": "combate submerso",
   "weapon": "TORPEDO DE PROVA",
-  "description": "MUNIÇÃO SUBAQUÁTICA · TESTE ARCADE",
+  "description": "CÂMERA SUBMERSA · Q SOBE / E DESCE · TORPEDOS COM PROFUNDIDADE",
   "maxSpeed": 26,
   "response": 1.45,
   "turn": 0.65,
@@ -18,10 +18,10 @@
   "cameraHeight": 17,
   "maxHp": 180,
   "spawn": {
-    "x": 150,
+    "x": 20,
     "z": 535,
     "yaw": 0,
-    "depth": 8
+    "depth": 6
   },
   "model": {
     "kind": "procedural",
@@ -36,5 +36,10 @@
     "secondary": "F",
     "ascend": "Q",
     "descend": "E"
+  },
+  "submarine": {
+    "camera": "underwater-chase",
+    "torpedoMinimumY": -65,
+    "periscopeDepth": 1.5
   }
 }
