@@ -1,5 +1,15 @@
 # Histórico de alterações
 
+## [0.3.5-lab] — 2026-11-23 (editor de missões e laboratório experimental)
+
+- Editor WMK Mission Studio em `mission-editor.html`, com objetivos clicáveis no mapa e propriedades por objetivo.
+- Modelos prontos: patrulha, defesa de base e escolta de blindado; até 25 objetivos por missão.
+- Tipos de objetivo eliminar, capturar, defender e escoltar, com regras de conclusão e falha testáveis.
+- Validação, importação e exportação JSON, salvamento no navegador e botão Testar no Laboratório.
+- Painel de objetivos no laboratório, progresso em tempo real, círculos no mapa e persistência de missão no JSON.
+- Compatibilidade com saves antigos, mantendo a versão principal do jogo em 0.2.0.
+- Testes unitários do motor de missões e validação sintática do editor em CI.
+
 ## [0.3.4-lab] — 2026-11-23 (laboratório experimental)
 
 - Duas patrulhas inimigas móveis com A* e perseguição de aliados.
