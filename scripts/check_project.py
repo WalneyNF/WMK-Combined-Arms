@@ -24,7 +24,7 @@ for file in (root / "data" / "exemplos").glob("*.json"):
     assert data.get("schemaVersion") == 1, f"versão de schema inválida: {file}"
     assert data.get("id"), f"id ausente: {file}"
 version = json.loads((root / "version.json").read_text(encoding="utf-8"))
-assert version["version"] == "0.2.0"
+assert version["version"] == "0.2.1"
 for unit_type in ("heli","tank","ship","soldier","artillery","plane","sub","apc"):
     unit = json.loads((root / "data" / "units" / (unit_type+".json")).read_text(encoding="utf-8"))
     assert unit["type"] == unit_type and unit["schemaVersion"] == 1
