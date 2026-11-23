@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "operacao-demo",
+  "mapId": "ilha-demo",
+  "objectives": [
+    {
+      "id": "objetivo-1",
+      "type": "destroy",
+      "targetFaction": "enemy",
+      "count": 8
+    }
+  ],
+  "failConditions": [
+    {
+      "type": "playerDestroyed"
+    }
+  ]
+}
