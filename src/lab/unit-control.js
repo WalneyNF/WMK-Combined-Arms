@@ -135,6 +135,11 @@ function validateUnit(u){
 function createEntity(raw){
   const d=validateUnit(raw);
   const group=d.kind==="soldier"?modelSoldier():d.kind==="tank"?modelTank():d.kind==="heli"?modelHeli():modelEnemy();
+  if(d.faction==="enemy"&&d.kind==="soldier"){
+    box(group,1.2,.18,.9,materials.enemy,0,3.48,0);
+    const marker=part(group,new THREE.ConeGeometry(.5,.85,6),materials.enemy,0,4.7,0);
+    marker.rotation.y=Math.PI/6;
+  }
   group.position.fromArray(d.position);group.rotation.y=d.yaw;group.visible=d.health>0;scene.add(group);
   entities.set(d.id,{...d,group,aiTime:0});
 }
@@ -673,7 +678,7 @@ function updateHUD(){
     " · HP "+Math.ceil(e.health)+"/"+e.maxHealth+
     " · MUNIÇÃO "+e.ammo+"/"+e.reserve+
     " · "+(e.reload>0?"RECARREGANDO":"PRONTO")+
-    " · ALVOS "+missionKills+"/2 · PONTOS "+missionScore;
+    " · ALVOS "+missionKills+"/"+[...entities.values()].filter(u=>u.faction==="enemy").length+" · PONTOS "+missionScore;
   $("debug-text").innerHTML="<b>Ativo:</b> "+e.id+"<br><b>Posto:</b> "+currentSeat+
     "<br><b>Controlador:</b> jogador"+
     "<br><b>Posição:</b> "+e.group.position.toArray().map(v=>v.toFixed(1)).join(", ")+
@@ -695,7 +700,14 @@ function animate(now){
   // A simulação segue ativa no mapa tático; somente a entrada do jogador fica bloqueada.
   for(const e of entities.values()){
     e.cooldown=Math.max(0,e.cooldown-dt);
-    if(e.reload>0){e.reload-=dt;if(e.reload<=0){const n=Math.min(defs[e.kind].magazine-e.ammo,e.reserve);e.ammo+=n;e.reserve-=n;notice("Recarregado: "+e.name)}}
+    if(e.reload>0){e.reload-=dt;if(e.reload<=0){
+      const n=Math.max(0,Math.min(defs[e.kind].magazine-e.ammo,e.reserve));
+      e.ammo+=n;e.reserve-=n;
+      if(e.id===activeId)notice("Recarregado: "+e.name);
+    }}
+    if(e.id!==activeId&&e.reload<=0&&e.ammo===0&&e.reserve>0&&defs[e.kind].reloadTime>0){
+      e.reload=defs[e.kind].reloadTime;
+    }
     if(e.kind==="soldier")updateSoldier(e,dt,elapsed);
     else if(isVehicle(e))updateVehicle(e,dt);
   }
