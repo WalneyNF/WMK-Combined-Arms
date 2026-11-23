@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "soldier",
+  "type": "soldier",
+  "name": "SOLDADO",
+  "category": "infantry",
+  "role": "infantaria terceira pessoa",
+  "weapon": "FUZIL DE ASSALTO",
+  "description": "RAJADAS CURTAS · MOBILIDADE",
+  "maxSpeed": 8,
+  "response": 9,
+  "turn": 2.7,
+  "rate": 0.16,
+  "damage": 8,
+  "shotSpeed": 180,
+  "boost": 1.5,
+  "cameraDistance": 10,
+  "cameraHeight": 5,
+  "maxHp": 100,
+  "spawn": {
+    "x": -145,
+    "z": 54,
+    "yaw": 0
+  },
+  "model": {
+    "kind": "procedural",
+    "asset": null
+  },
+  "controls": {
+    "forward": "W",
+    "reverse": "S",
+    "left": "A",
+    "right": "D",
+    "fire": "Space",
+    "secondary": "F",
+    "ascend": null,
+    "descend": null
+  }
+}
