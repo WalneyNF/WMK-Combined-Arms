@@ -58,6 +58,16 @@ for element_id in ("units-list","mapcanvas","order-target","debug-text","file","
 for symbol in ("modelSoldier", "modelTank", "modelHeli", "function assume(", "function disembark(", "function switchSeat(", "function toggleMap(", "function saveLocal(", "function botUpdate("):
     assert symbol in lab_js, f"Recurso não encontrado: {symbol}"
 assert (root / "manuais" / "unit-control-lab.html").is_file()
+# Contratos específicos da v0.3.2 — módulos separados, UI de tripulação e A*.
+assert (root / "src" / "lab" / "navigation.mjs").is_file()
+assert (root / "src" / "lab" / "crew.mjs").is_file()
+assert 'id="crew-content"' in lab_html
+assert 'from "./navigation.mjs"' in lab_js and 'from "./crew.mjs"' in lab_js
+for symbol in ("findPath(", "renderCrewPanel(", "boardCrew(", "leaveCrew(", "nextAvailableSeat("):
+    assert symbol in lab_js, f"Integracao da v0.3.2 ausente: {symbol}"
+for test_file in ("movement.test.mjs","navigation.test.mjs","crew.test.mjs"):
+    assert (root / "tests" / test_file).is_file()
+
 try:
     check_lab=subprocess.run(["node","--check","--input-type=module"],input=lab_js,text=True,capture_output=True,check=False)
 except FileNotFoundError:
