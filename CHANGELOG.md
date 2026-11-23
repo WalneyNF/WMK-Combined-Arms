@@ -1,5 +1,15 @@
 # Histórico de alterações
 
+## [0.3.6-lab] — 2026-11-23 (cenários e spawns editáveis)
+
+- Editor de missões: modo Unidades e Objetivos, inserção de soldados, tanques, helicópteros e alvos fixos no mapa.
+- Propriedades individuais por unidade: ID, classe, facção, nome, X/Y/Z, rotação, HP, munição e ordem de bot.
+- Duplicar unidade com ID único; exclusão preserva vínculos; alterar ID atualiza referências nos objetivos.
+- JSON das missões pode conter até 40 unidades e até 25 objetivos, com validação cruzada de IDs.
+- Botão Testar Missão carrega e instancia entidades personalizadas no laboratório, preservando a estrutura do jogo principal.
+- Atalhos 1–4 e seleção de unidades adaptados à composição do cenário; compatibilidade de saves anteriores.
+- Novos testes de validação de cenário e referências dos objetivos, executados no GitHub Actions.
+
 ## [0.3.5-lab] — 2026-11-23 (editor de missões e laboratório experimental)
 
 - Editor WMK Mission Studio em `mission-editor.html`, com objetivos clicáveis no mapa e propriedades por objetivo.
