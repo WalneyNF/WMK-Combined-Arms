@@ -25,17 +25,21 @@ for file in (root / "data" / "exemplos").glob("*.json"):
     assert data.get("id"), f"id ausente: {file}"
 version = json.loads((root / "version.json").read_text(encoding="utf-8"))
 assert version["version"] == "0.1.0"
-modules = re.findall(r'<script type="module">([\s\S]*?)</script>', index)
-assert len(modules) == 1, "esperado exatamente um script módulo"
+modules = []
+for html_source in (index, (root / "studio.html").read_text(encoding="utf-8")):
+    found = re.findall(r'<script type="module">([\s\S]*?)</script>', html_source)
+    assert len(found) == 1, "esperado exatamente um script módulo por arquivo"
+    modules.extend(found)
 try:
-    check = subprocess.run(
+    checks = [subprocess.run(
         ["node", "--check", "--input-type=module"],
-        input=modules[0], text=True, capture_output=True, check=False
-    )
+        input=module, text=True, capture_output=True, check=False
+    ) for module in modules]
 except FileNotFoundError:
     print("AVISO: Node.js não disponível; verificação sintática JS ignorada.")
 else:
-    if check.returncode:
-        print(check.stderr)
-        sys.exit(check.returncode)
+    for check in checks:
+        if check.returncode:
+            print(check.stderr)
+            sys.exit(check.returncode)
 print("OK: arquivos, documentação, JSON e sintaxe JavaScript.")
