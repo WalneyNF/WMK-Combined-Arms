@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { resolveGroundPosition, findSafeExit } from "./movement.mjs";
 
 // WMK Unit Control Lab v0.3.0 — protótipo isolado, sem alterar o jogo principal.
 // Entidade, controle e assento são conceitos separados. O mundo nunca é reiniciado ao trocar.
@@ -15,6 +16,16 @@ const materials={ground:mat(0x608469),runway:mat(0x586b6e),concrete:mat(0x768584
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(550,550),materials.ground);ground.rotation.x=-Math.PI/2;scene.add(ground);
 const grid=new THREE.GridHelper(550,55,0x92b6a0,0x587c6b);grid.position.y=.015;scene.add(grid);
 const floor=(x,z)=>0, bound=n=>THREE.MathUtils.clamp(n,-260,260);
+// Colisão arcade independente da renderização.
+function groundRadius(e){return e.kind==="tank"?4.4:e.kind==="soldier"?.75:e.kind==="heli"?5.5:2}
+function obstacles(except){return [...entities.values()].filter(e=>e.id!==except&&e.health>0&&e.kind==="tank").map(e=>({x:e.group.position.x,z:e.group.position.z,radius:groundRadius(e)}))}
+function collide(e){
+  if(e.kind==="heli"&&e.group.position.y>5)return false;
+  const p=e.group.position,r=resolveGroundPosition(p.x,p.z,groundRadius(e),obstacles(e.id));
+  p.x=r.x;p.z=r.z;
+  if(r.collided&&e.kind==="tank")e.speed=0;
+  return r.collided;
+}
 function part(parent,geom,m,x=0,y=0,z=0,rot=[0,0,0]){const p=new THREE.Mesh(geom,m);p.position.set(x,y,z);p.rotation.set(...rot);parent.add(p);return p;}
 const box=(p,w,h,d,m,x,y,z)=>part(p,new THREE.BoxGeometry(w,h,d),m,x,y,z);
 function scenery(){
@@ -166,15 +177,16 @@ function assume(id,fromBoard=false){
   renderControls();notice("Assumiu "+e.name+" · "+(currentSeat==="foot"?"a pé":currentSeat));
 }
 function disembark(){
-  const vehicle=person().aboard?entities.get(person().aboard):null;
-  if(vehicle&&isVehicle(vehicle)){
-    const side=new THREE.Vector3(Math.cos(vehicle.group.rotation.y),0,-Math.sin(vehicle.group.rotation.y));
-    const pos=vehicle.group.position.clone().addScaledVector(side,vehicle.kind==="tank"?7:9);
-    person().group.position.set(bound(pos.x),0,bound(pos.z));
-  }
-  person().aboard=null;person().group.visible=true;
-  activeId="soldier-001";currentSeat="foot";cameraYaw=person().group.rotation.y;
-  renderControls();notice("Soldado desembarcou / controle transferido");
+  const soldier=person(),vehicle=soldier.aboard?entities.get(soldier.aboard):null;
+  if(!vehicle){notice("Controle remoto: pressione 1 para voltar ao soldado.");return}
+  const blockers=obstacles(vehicle.id);
+  blockers.push({x:vehicle.group.position.x,z:vehicle.group.position.z,radius:groundRadius(vehicle)});
+  const exit=findSafeExit(vehicle.group.position,vehicle.group.rotation.y,blockers);
+  if(!exit){notice("Saída bloqueada. Movimente o veículo para outra posição.");return}
+  soldier.group.position.set(exit.x,0,exit.z);
+  soldier.aboard=null;soldier.group.visible=true;activeId="soldier-001";currentSeat="foot";
+  cameraYaw=soldier.group.rotation.y;keys.clear();mouseDown=false;
+  renderControls();notice("Desembarcou: veículo preservado no mundo.");
 }
 function nearestVehicle(){
   const p=person().group.position;let best=null,distance=Infinity;
@@ -186,7 +198,8 @@ function nearestVehicle(){
 function interact(){
   const e=active();
   if(e.kind==="soldier"){const near=nearestVehicle();if(!near)return notice("Aproxime-se de um tanque ou helicóptero (até 17 m)");assume(near.id,true)}
-  else disembark();
+  else if(person().aboard===e.id)disembark();
+  else notice("Controle remoto: pressione 1 para voltar ao soldado.");
 }
 function switchSeat(){
   const e=active();if(e.kind==="tank"){const seats=["driver","gunner","commander"];currentSeat=seats[(seats.indexOf(currentSeat)+1)%seats.length];notice("POSTO · "+currentSeat)}
@@ -297,6 +310,7 @@ function updateSoldier(e,dt,now){
   const moving=move.lengthSq()>.001;const run=keys.has("ShiftLeft")||keys.has("ShiftRight");
   if(moving){e.group.position.addScaledVector(move,(run?defs.soldier.maxSpeed*defs.soldier.run:defs.soldier.maxSpeed)*dt);
     e.group.rotation.y=Math.atan2(-move.x,-move.z)}
+  collide(e);
   e.group.position.x=bound(e.group.position.x);e.group.position.z=bound(e.group.position.z);
   e.group.position.y=0;e.position=e.group.position.toArray();
   const anim=e.group.userData.anim,phase=now*(run?13:8),stride=moving?Math.sin(phase)*.6:0;
@@ -307,7 +321,8 @@ function updateSoldier(e,dt,now){
   if(e.jumpTime!=null){e.jumpTime-=dt;const t=.48-e.jumpTime;e.group.position.y=Math.max(0,Math.sin(t/.48*Math.PI)*1.8);if(e.jumpTime<=0)e.jumpTime=null}
 }
 function botUpdate(e,dt){
-  if(e.order==="hold"||e.health<=0||e.aboard)return;
+  if(e.health<=0||e.aboard)return;
+  if(e.order==="hold"){if(e.kind==="heli"){e.group.userData.rotor.rotation.y+=dt*24;e.group.userData.tail.rotation.x+=dt*28;}return;}
   const p=e.group.position;
   let point=e.target;
   if(e.order==="follow"&&e.id!==activeId)point=active().group.position.toArray();
@@ -317,6 +332,7 @@ function botUpdate(e,dt){
   const margin=e.kind==="tank"?11:5;
   if(dir.length()>margin){dir.normalize();let speed=e.kind==="heli"?10:e.kind==="tank"?6:3;
     p.x=bound(p.x+dir.x*speed*dt);p.z=bound(p.z+dir.z*speed*dt);
+    collide(e);
     e.group.rotation.y=Math.atan2(-dir.x,-dir.z)}
   else if(e.order==="patrol"){e.target=[-e.target[0],e.target[1],-e.target[2]]}
   if(e.kind==="tank")p.y=0;
@@ -332,6 +348,7 @@ function updateVehicle(e,dt){
     const dir=forward(e.group.rotation.y);
     e.group.position.addScaledVector(dir,e.speed*dt);
     e.group.position.x=bound(e.group.position.x);e.group.position.z=bound(e.group.position.z);
+    collide(e);
     cameraYaw=THREE.MathUtils.lerp(cameraYaw,e.group.rotation.y,Math.min(1,dt*2));
     if(e.kind==="heli"){
       const vertical=(keys.has("KeyQ")?1:0)-(keys.has("KeyC")?1:0);
@@ -369,7 +386,7 @@ function updateHUD(){
     "<br><b>FPS:</b> "+Math.round(1/Math.max(.0001,frameDt));
   const near=e.kind==="soldier"?nearestVehicle():null;
   if(near&&toastTime<=0)$("notice").textContent="Pressione E para entrar em "+near.name;
-  renderControls();
+  // A lista de unidades é atualizada nos eventos, não em todo refresh do HUD.
 }
 let frameDt=.016,frameCount=0;
 function animate(now){
