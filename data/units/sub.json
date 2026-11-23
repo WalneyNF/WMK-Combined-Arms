@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "sub",
+  "type": "sub",
+  "name": "SUBMARINO",
+  "category": "naval",
+  "role": "combate submerso",
+  "weapon": "TORPEDO DE PROVA",
+  "description": "MUNIÇÃO SUBAQUÁTICA · TESTE ARCADE",
+  "maxSpeed": 26,
+  "response": 1.45,
+  "turn": 0.65,
+  "rate": 1.7,
+  "damage": 58,
+  "shotSpeed": 95,
+  "boost": 1.2,
+  "cameraDistance": 44,
+  "cameraHeight": 17,
+  "maxHp": 180,
+  "spawn": {
+    "x": 150,
+    "z": 535,
+    "yaw": 0,
+    "depth": 8
+  },
+  "model": {
+    "kind": "procedural",
+    "asset": null
+  },
+  "controls": {
+    "forward": "W",
+    "reverse": "S",
+    "left": "A",
+    "right": "D",
+    "fire": "Space",
+    "secondary": "F",
+    "ascend": "Q",
+    "descend": "E"
+  }
+}
