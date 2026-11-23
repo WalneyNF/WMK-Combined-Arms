@@ -4,6 +4,10 @@
 
 **Versão:** 0.1.0 · **Autor das adaptações WMK:** Walney Moreira Klein — walneyk@hotmail.com
 
+## 🧰 Editor 3D experimental
+
+Abra [WMK World Studio Beta](studio.html) no servidor HTTP. Crie objetos primitivos, transforme com gizmos G/R/S, duplique, salve/import/export mapas JSON, mova e redimensione os painéis. Editor de JSON para veículos, bots, missões e armas com exemplos, **sem ligação automática ao jogo**. Para inserir no chão, segure Shift e clique no terreno.
+
 ## ▶️ Jogar
 
 Use um servidor HTTP: `py -m http.server 4173` e acesse `http://localhost:4173/`. O jogo depende de internet para carregar Three.js pelo CDN.
@@ -28,6 +32,7 @@ Use um servidor HTTP: `py -m http.server 4173` e acesse `http://localhost:4173/`
 - Três veículos jogáveis; tiros, mísseis, radar e HUD.
 - Objetivo demonstrativo de 8 eliminações.
 - Configuração gráfica persistente (botão e tecla O).
+- Estúdio beta 3D em página separada (edição de mapas e dados ainda não executados pelo jogo).
 
 ## 🔧 Em planejamento
 
