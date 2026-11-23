@@ -1,0 +1,161 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WMK Mission Studio v0.3.5 — Editor de Missões</title>
+<style>
+:root{color-scheme:dark;--bg:#06131d;--panel:#0d2632;--accent:#72e2c1;--line:#335665}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#e7f5f2;font:13px/1.55 system-ui,Arial}header{position:sticky;top:0;z-index:3;background:#071d27;padding:10px 15px;border-bottom:1px solid var(--line);display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+header strong{color:var(--accent);font-size:15px;letter-spacing:.07em;margin-right:12px}a{color:var(--accent)}button,input,select,textarea{font:inherit;border:1px solid #406873;border-radius:6px;background:#15323d;color:#e7f5f2;padding:8px}button{cursor:pointer}button:hover{border-color:var(--accent)}button.active{background:#255b54}button:disabled{opacity:.55}
+main{display:grid;grid-template-columns:minmax(250px,290px) minmax(430px,1fr) minmax(270px,330px);gap:10px;padding:10px;height:calc(100vh - 103px);min-height:500px}
+.panel{min-height:150px;background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:auto;padding:13px}
+h2{font-size:13px;letter-spacing:.06em;color:var(--accent);margin:0 0 12px}h3{font-size:13px;color:var(--accent);margin:16px 0 8px}label{display:block;color:#b4d0cf;font-size:12px;margin:8px 0 4px}input,select,textarea{width:100%}textarea{resize:vertical;min-height:65px}.row{display:flex;gap:5px}.row>*{flex:1}.muted{color:#aac4c3}.objective{border:1px solid var(--line);border-radius:7px;padding:10px;margin:7px 0;cursor:pointer}.objective.active{border-color:var(--accent);background:#183e43}.objective small{display:block;color:#b5c9c7}.objective .delete{float:right;padding:2px 5px}
+#map{width:100%;height:auto;max-height:calc(100vh - 220px);border:1px solid #38616a;background:#15322f;cursor:crosshair;display:block}#message{color:#ffda95;min-height:18px}#inspect{white-space:pre-line;color:#bad4d0}.tip{border-left:3px solid #d5bd83;padding:9px;background:#2b2e2c}footer{text-align:center;font-size:11px;color:#aacac6;padding:6px}
+@media(max-width:1000px){main{grid-template-columns:1fr 1fr;height:auto}.map-panel{grid-column:1 / -1;grid-row:1}}@media(max-width:630px){main{grid-template-columns:1fr}.map-panel{grid-column:auto}}
+</style></head><body>
+<header><strong>WMK MISSION STUDIO · v0.3.5</strong>
+<button id="preset-patrol">Patrulha</button><button id="preset-base">Defesa</button><button id="preset-escort">Escolta</button>
+<button id="save">Salvar</button><button id="export">Exportar JSON</button><button id="import">Importar JSON</button>
+<button id="launch">Testar missão no laboratório</button><a href="unit-control-lab.html">Laboratório</a><a href="roadmap.html">Roadmap</a>
+</header>
+<main>
+<section class="panel">
+<h2>01 · DADOS DA MISSÃO</h2>
+<label for="mission-id">Identificador</label><input id="mission-id" value="minha-missao" maxlength="64">
+<label for="mission-name">Nome</label><input id="mission-name" value="Nova missão" maxlength="100">
+<label for="description">Descrição</label><textarea id="description" maxlength="1000">Missão personalizada.</textarea>
+<h3>OBJETIVOS</h3>
+<button id="add">+ Adicionar objetivo</button>
+<div id="objective-list"></div>
+<p class="muted">Arraste objetivos pela ordem usando os botões ↑ e ↓. Cada objetivo é avaliado independentemente.</p>
+</section>
+<section class="panel map-panel">
+<h2>02 · MAPA TÁTICO · CLIQUE PARA DEFINIR DESTINO</h2>
+<canvas id="map" width="900" height="620"></canvas>
+<p id="message"></p>
+<p class="muted">Clique no mapa para posicionar o objetivo selecionado. Os pontos vermelhos são inimigos; verdes, aliados. O raio do objetivo aparece em amarelo. Coordenadas usam o mesmo mundo do laboratório.</p>
+<div class="tip">O editor salva definições JSON. <strong>Testar missão</strong> envia a definição ao laboratório no mesmo navegador, sem reescrever o mapa e sem criar novos veículos. IDs de unidades devem existir no laboratório.</div>
+</section>
+<section class="panel">
+<h2>03 · PROPRIEDADES DO OBJETIVO</h2>
+<div id="properties"><p class="muted">Selecione ou adicione um objetivo.</p></div>
+<h3>VALIDAÇÃO</h3><div id="inspect">Nenhuma validação ainda.</div>
+<h3>UNIDADES DO CENÁRIO</h3><div class="muted">soldier-001 · Soldado principal
+soldier-002 · Soldado de apoio
+tank-001 · Tanque
+heli-001 · Helicóptero
+enemy-001 · Posição hostil A
+enemy-002 · Posição hostil B
+enemy-soldier-001 · Patrulha hostil A
+enemy-soldier-002 · Patrulha hostil B</div>
+</section>
+</main>
+<input type="file" id="file" accept=".json,application/json" hidden><footer>Walney Moreira Klein — walneyk@hotmail.com · WMK Combined Arms · MIT</footer>
+<script type="module">
+import {validateMission,presetMission,OBJECTIVE_TYPES} from "./src/lab/mission.mjs";
+const $=id=>document.getElementById(id),storageKey="wmk-ca-mission-v035";
+let mission=presetMission("patrol"),selectedId=mission.objectives[0].id;
+const canvas=$("map"),ctx=canvas.getContext("2d"),markerSize=5;
+const locations=[
+ {id:"soldier-001",x:0,z:24,side:"allies"},
+ {id:"soldier-002",x:-12,z:20,side:"allies"},
+ {id:"tank-001",x:25,z:-5,side:"allies"},
+ {id:"heli-001",x:-40,z:-8,side:"allies"},
+ {id:"enemy-001",x:-8,z:-95,side:"enemy"},
+ {id:"enemy-002",x:50,z:-113,side:"enemy"},
+ {id:"enemy-soldier-001",x:-28,z:-123,side:"enemy"},
+ {id:"enemy-soldier-002",x:40,z:-127,side:"enemy"}
+];
+const worldToMap=(x,z)=>({x:canvas.width/2+x*1.11,y:canvas.height/2+z*1.11});
+const mapToWorld=(x,y)=>({x:Math.max(-255,Math.min(255,(x-canvas.width/2)/1.11)),z:Math.max(-255,Math.min(255,(y-canvas.height/2)/1.11))});
+const objective=()=>mission.objectives.find(o=>o.id===selectedId);
+function alertUser(msg){$("message").textContent=msg}
+function renderMap(){
+ ctx.fillStyle="#163b39";ctx.fillRect(0,0,canvas.width,canvas.height);
+ ctx.strokeStyle="#34675f";ctx.lineWidth=1;
+ for(let x=0;x<canvas.width;x+=45){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}
+ for(let y=0;y<canvas.height;y+=45){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}
+ for(const u of locations){
+  const p=worldToMap(u.x,u.z);ctx.fillStyle=u.side==="enemy"?"#fa7771":"#74e3c2";
+  ctx.beginPath();ctx.arc(p.x,p.y,8,0,Math.PI*2);ctx.fill();
+  ctx.font="12px system-ui";ctx.fillStyle="#effdfa";ctx.fillText(u.id,p.x+12,p.y+4);
+ }
+ for(const o of mission.objectives){
+  const p=worldToMap(o.position[0],o.position[2]),selected=o.id===selectedId;
+  ctx.fillStyle=selected?"#ffe4a0":"#f0ca71";ctx.strokeStyle="#ffe4a0";ctx.lineWidth=selected?3:1.5;
+  ctx.beginPath();ctx.arc(p.x,p.y,7,0,Math.PI*2);ctx.fill();
+  if(selected){ctx.beginPath();ctx.arc(p.x,p.y,o.radius*1.11,0,Math.PI*2);ctx.stroke()}
+  ctx.fillStyle="#fff6da";ctx.font="bold 13px system-ui";ctx.fillText(o.title,p.x+12,p.y-10);
+ }
+}
+function renderList(){
+ const root=$("objective-list");root.replaceChildren();
+ for(const [index,o] of mission.objectives.entries()){
+  const card=document.createElement("div");card.className="objective"+(o.id===selectedId?" active":"");
+  const title=document.createElement("strong");title.textContent=(index+1)+". "+o.title;
+  const type=document.createElement("small");type.textContent=o.type+" · "+o.position[0].toFixed(0)+", "+o.position[2].toFixed(0);
+  const row=document.createElement("div");row.className="row";
+  for(const [text,action] of [["↑",()=>move(index,-1)],["↓",()=>move(index,1)],["Excluir",()=>remove(o.id)]]){
+   const b=document.createElement("button");b.textContent=text;b.onclick=event=>{event.stopPropagation();action()};row.append(b)
+  }
+  card.onclick=()=>{selectedId=o.id;renderAll()};card.append(title,type,row);root.append(card);
+ }
+}
+function move(i,d){const j=i+d;if(j<0||j>=mission.objectives.length)return;const arr=mission.objectives;[arr[i],arr[j]]=[arr[j],arr[i]];renderAll()}
+function remove(id){if(mission.objectives.length===1)return alertUser("Mantenha pelo menos um objetivo.");mission.objectives=mission.objectives.filter(o=>o.id!==id);selectedId=mission.objectives[0].id;renderAll()}
+function bindProperty(root,label,key,type="text",options=[]){
+ const o=objective();const field=document.createElement("label");field.textContent=label;
+ const input=type==="select"?document.createElement("select"):document.createElement("input");
+ if(type==="select")for(const value of options){const option=document.createElement("option");option.value=value;option.textContent=value;input.append(option)}
+ else{input.type=type;if(type==="number"){input.step=key==="radius"||key==="duration"?"1":"0.1";input.min=key==="radius"?"3":key==="duration"?"1":"-255";input.max=key==="radius"?"100":key==="duration"?"3600":"255"}}
+ const targetKey=key==="x"||key==="z"?"position":key;
+ input.value=targetKey==="position"?o.position[key==="x"?0:2]:o[key]??"";
+ input.onchange=()=>{
+  const value=type==="number"?Number(input.value):input.value;
+  if(targetKey==="position")o.position[key==="x"?0:2]=value;
+  else o[key]=value;
+  if(key==="type"&&value==="eliminate"&&!o.targetId)o.targetId="enemy-001";
+  if(key==="type"&&(value==="defend"||value==="escort")&&!o.targetId)o.targetId=value==="escort"?"tank-001":"soldier-001";
+  renderAll();
+ };
+ field.append(input);root.append(field);
+}
+function renderProperties(){
+ const root=$("properties");root.replaceChildren();if(!objective())return;
+ bindProperty(root,"ID único","id");
+ bindProperty(root,"Título","title");
+ bindProperty(root,"Tipo","type","select",OBJECTIVE_TYPES);
+ bindProperty(root,"Unidade-alvo (ID)", "targetId","select",["","enemy-001","enemy-002","enemy-soldier-001","enemy-soldier-002","soldier-001","soldier-002","tank-001","heli-001"]);
+ bindProperty(root,"Posição X", "x","number");
+ bindProperty(root,"Posição Z", "z","number");
+ bindProperty(root,"Raio em metros", "radius","number");
+ bindProperty(root,"Duração em segundos", "duration","number");
+}
+function captureHeader(){
+ mission.id=$("mission-id").value;mission.name=$("mission-name").value;
+ mission.description=$("description").value;
+}
+function validateCurrent(){try{captureHeader();validateMission(mission);$("inspect").textContent="✓ Definição válida · "+mission.objectives.length+" objetivo(s)";return true}catch(e){$("inspect").textContent="⚠ "+e.message;return false}}
+function renderAll(){
+ $("mission-id").value=mission.id;$("mission-name").value=mission.name;$("description").value=mission.description;
+ renderList();renderProperties();renderMap();validateCurrent();
+}
+canvas.onclick=e=>{
+ const bounds=canvas.getBoundingClientRect(),x=(e.clientX-bounds.left)/bounds.width*canvas.width,y=(e.clientY-bounds.top)/bounds.height*canvas.height;
+ const p=mapToWorld(x,y),o=objective();if(!o)return;
+ o.position=[Math.round(p.x),0,Math.round(p.z)];renderAll();alertUser("Objetivo "+o.title+" posicionado em "+o.position[0]+", "+o.position[2]);
+};
+$("add").onclick=()=>{
+ const id="objetivo-"+Math.floor(Date.now()%1000000)+"-"+mission.objectives.length;
+ const o={id,type:"capture",title:"Capturar nova posição",targetId:null,position:[0,0,0],radius:20,duration:10};
+ mission.objectives.push(o);selectedId=id;renderAll();
+};
+function loadPreset(key){mission=presetMission(key);selectedId=mission.objectives[0].id;renderAll();alertUser("Preset "+mission.name+" carregado")}
+for(const key of ["patrol","base","escort"])$("preset-"+key).onclick=()=>loadPreset(key);
+const download=(name,data)=>{const url=URL.createObjectURL(new Blob([data],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+$("export").onclick=()=>{if(!validateCurrent())return alertUser("Corrija a missão antes de exportar.");download("wmk-missao-"+mission.id+".json",JSON.stringify(validateMission(mission),null,2));alertUser("JSON exportado.")};
+$("save").onclick=()=>{if(!validateCurrent())return alertUser("Missão inválida.");try{localStorage.setItem(storageKey,JSON.stringify(validateMission(mission)));alertUser("Missão salva no navegador.")}catch(e){alertUser(e.message)}};
+$("launch").onclick=()=>{if(!validateCurrent())return alertUser("Corrija a missão antes de testar.");try{localStorage.setItem(storageKey,JSON.stringify(validateMission(mission)));window.location.href="unit-control-lab.html?mission=custom"}catch(e){alertUser(e.message)}};
+$("import").onclick=()=>$("file").click();
+$("file").onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>100000)throw Error("Tamanho máximo: 100 KB");mission=validateMission(JSON.parse(await file.text()));selectedId=mission.objectives[0].id;renderAll();alertUser("Arquivo importado e validado.")}catch(err){alertUser("Erro: "+err.message)}finally{e.target.value=""}};
+for(const id of ["mission-id","mission-name","description"])$(id).addEventListener("input",validateCurrent);
+try{const stored=localStorage.getItem(storageKey);if(stored){mission=validateMission(JSON.parse(stored));selectedId=mission.objectives[0].id}}catch(e){console.warn("Save de missão inválido",e)}
+renderAll();
+</script></body></html>
