@@ -1,4 +1,5 @@
 import {validateRoster} from "./scenario.mjs";
+import {validateProps} from "./scenery.mjs";
 // WMK Combined Arms — contrato de missões v0.3.6. Independente do motor gráfico.
 // O editor, os testes e o laboratório utilizam exatamente o mesmo esquema.
 export const OBJECTIVE_TYPES=Object.freeze(["eliminate","capture","defend","escort"]);
@@ -28,6 +29,7 @@ export function validateMission(raw){
     };
   });
   const units=raw.units===undefined?undefined:validateRoster(raw.units);
+  const props=raw.props===undefined?undefined:validateProps(raw.props);
   if(units){
     const indexed=new Map(units.map(u=>[u.id,u]));
     if(!units.some(u=>u.faction==="allies"&&u.kind==="soldier"))
@@ -44,7 +46,7 @@ export function validateMission(raw){
     }
   }
   return {schemaVersion:1,id:raw.id,name:raw.name.trim(),description:String(raw.description||"").slice(0,1000),
-    objectives,...(units?{units}:{})};
+    objectives,...(units?{units}:{}),...(props?{props}:{})};
 }
 export function startMission(mission){
   const definition=validateMission(mission);
