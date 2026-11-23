@@ -65,11 +65,14 @@ assert 'id="crew-content"' in lab_html
 assert 'from "./navigation.mjs"' in lab_js and 'from "./crew.mjs"' in lab_js
 for symbol in ("findPath(", "renderCrewPanel(", "boardCrew(", "leaveCrew(", "nextAvailableSeat("):
     assert symbol in lab_js, f"Integracao da v0.3.2 ausente: {symbol}"
-for test_file in ("movement.test.mjs","navigation.test.mjs","crew.test.mjs"):
+for test_file in ("movement.test.mjs","navigation.test.mjs","crew.test.mjs","combat.test.mjs","formation.test.mjs"):
     assert (root / "tests" / test_file).is_file()
 
 # v0.3.3 — combate e esquadrões testados de forma separada.
 assert (root / "src" / "lab" / "combat.mjs").is_file()
+assert (root / "src" / "lab" / "formation.mjs").is_file()
+assert 'id="squad-formation"' in lab_html
+assert 'from "./formation.mjs"' in lab_js
 assert (root / "tests" / "combat.test.mjs").is_file()
 for control in ("squad-members","squad-target","combat-log","map-attack"):
     assert f'id="{control}"' in lab_html, f"Controle de esquadra ausente: {control}"
