@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "enemy-patrol-01",
+  "faction": "enemy",
+  "vehicleId": "wmk-helicopter-training",
+  "behavior": "patrol",
+  "detectionRange": 180,
+  "accuracy": 0.7,
+  "waypoints": [
+    [
+      0,
+      40,
+      0
+    ],
+    [
+      80,
+      40,
+      80
+    ]
+  ]
+}
