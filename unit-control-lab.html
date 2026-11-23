@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WMK Unit Control Lab v0.3.2 — Combined Arms</title>
+<title>WMK Unit Control Lab v0.3.3 — Combined Arms</title>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"}}</script>
 <style>
 :root{color-scheme:dark;--b:#081821;--p:#0c2631eb;--line:#365864;--mint:#72e2c1;--txt:#e9f7f3;--muted:#abc2c1}
@@ -9,7 +9,7 @@
 header{position:fixed;top:8px;left:8px;right:8px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;z-index:15;pointer-events:none}header>*{pointer-events:auto}header .brand{background:#061822ed;border:1px solid #348376;color:var(--mint);font-weight:800;letter-spacing:.1em;border-radius:6px;padding:9px}header a{color:var(--mint);text-decoration:none;background:#071a22d9;padding:8px;border-radius:5px}
 .panel{position:fixed;z-index:8;min-width:190px;min-height:90px;max-width:95vw;max-height:80vh;overflow:auto;resize:both;background:var(--p);border:1px solid var(--line);border-radius:9px;box-shadow:0 10px 30px #0008}
 .panel h2{font-size:12px;color:var(--mint);padding:10px;margin:0;background:#0d303d;cursor:move;user-select:none;letter-spacing:.06em}
-.panel .body{padding:11px}.panel .body>*+*{margin-top:9px}.panel label{display:block;color:var(--muted)}.panel input,.panel select{max-width:100%}.panel button{margin:2px}.hint{color:var(--muted);font-size:11px}#units{top:60px;left:12px;width:251px;height:320px}#debug{top:60px;right:12px;width:260px;height:288px}#orders{right:12px;bottom:35px;width:260px;height:225px}#help{left:12px;bottom:35px;width:270px;height:265px}#crew{left:278px;top:60px;width:235px;height:185px}#crew-content button{display:block;width:100%;margin:4px 0;text-align:left}#units-list button{width:100%;text-align:left;display:block;margin:4px 0}#units-list button.active{background:#286857;border-color:var(--mint)}#units-list .detail{display:block;font-size:10px;color:var(--muted)}.row{display:flex;gap:5px;flex-wrap:wrap}.row>*{flex:1}#reticle{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:26px;color:#c7ffec;text-shadow:0 0 8px black;pointer-events:none;z-index:4}
+.panel .body{padding:11px}.panel .body>*+*{margin-top:9px}.panel label{display:block;color:var(--muted)}.panel input,.panel select{max-width:100%}.panel button{margin:2px}.hint{color:var(--muted);font-size:11px}#units{top:60px;left:12px;width:251px;height:320px}#debug{top:60px;right:12px;width:260px;height:288px}#orders{right:12px;bottom:35px;width:275px;height:340px}#squad-members label{display:block;font-size:11px;padding:2px 0;color:#dbf1e9}#squad-members input{vertical-align:middle;margin-right:6px}#combat-log{white-space:pre-wrap;font-size:10px;color:#c7e5d8;border-top:1px solid #42616a;padding-top:7px;min-height:34px}#help{left:12px;bottom:35px;width:270px;height:265px}#crew{left:278px;top:60px;width:235px;height:185px}#crew-content button{display:block;width:100%;margin:4px 0;text-align:left}#units-list button{width:100%;text-align:left;display:block;margin:4px 0}#units-list button.active{background:#286857;border-color:var(--mint)}#units-list .detail{display:block;font-size:10px;color:var(--muted)}.row{display:flex;gap:5px;flex-wrap:wrap}.row>*{flex:1}#reticle{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:26px;color:#c7ffec;text-shadow:0 0 8px black;pointer-events:none;z-index:4}
 #hud{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#0a2430e9;border:1px solid #3c8d7b;padding:10px 18px;border-radius:7px;text-align:center;max-width:90vw;z-index:5}
 #notice{position:fixed;top:52px;left:50%;transform:translateX(-50%);background:#0a2932e8;border:1px solid #569a8b;padding:9px 15px;border-radius:7px;z-index:16;color:#bdf9e6;max-width:85vw}
 #map{position:fixed;inset:7% 13%;z-index:25;background:#071c27f7;border:2px solid #72e2c1;border-radius:14px;display:none;padding:16px;box-shadow:0 30px 90px #000b}
@@ -27,7 +27,14 @@ header{position:fixed;top:8px;left:8px;right:8px;display:flex;gap:7px;align-item
 <section class="panel" id="units"><h2>☷ UNIDADES · CLIQUE PARA ASSUMIR</h2><div class="body"><div id="units-list"></div><div class="hint">Selecione uma unidade aliada ou chegue perto para entrar com E.</div></div></section>
 <section class="panel" id="crew"><h2>☷ TRIPULAÇÃO E POSTOS</h2><div class="body"><div class="hint">Escolha o posto ou use F para alternar. Ocupantes individuais são preservados.</div><div id="crew-content"></div></div></section>
 <section class="panel" id="debug"><h2>⌘ DEBUG EM TEMPO REAL</h2><div class="body"><div id="debug-text"></div><label>Qualidade <select id="quality"><option value="baixo">Baixa</option><option value="medio" selected>Média</option><option value="alto">Alta</option></select></label><div class="hint">Dados de unidades são independentes do controlador.</div></div></section>
-<section class="panel" id="orders"><h2>⚑ ORDENS PARA BOTS</h2><div class="body"><label>Unidade de destino <select id="order-target"></select></label><div class="row"><button data-order="hold">Manter</button><button data-order="patrol">Patrulhar</button><button data-order="follow">Seguir</button></div><div class="hint">A unidade sem jogador executa sua ordem. Pelo mapa M, clique em qualquer unidade e marque um destino.</div><button id="goto">Ir ao ponto do mapa</button></div></section>
+<section class="panel" id="orders"><h2>⚑ ORDENS PARA BOTS</h2><div class="body"><label>Unidade de destino <select id="order-target"></select></label><div class="row"><button data-order="hold">Manter</button><button data-order="patrol">Patrulhar</button><button data-order="follow">Seguir</button></div><div class="hint">Uma unidade sem jogador executa sua ordem. Ataques automáticos respeitam alcance, munição e obstáculos.</div><button id="goto">Ir ao ponto do mapa</button>
+<hr><b>ESQUADRÃO · SELEÇÃO MÚLTIPLA</b>
+<div id="squad-members"></div>
+<label>Alvo prioritário <select id="squad-target"></select></label>
+<div class="row"><button data-squad-order="attack">Atacar</button><button data-squad-order="defend">Defender</button></div>
+<div class="row"><button data-squad-order="follow">Seguir</button><button data-squad-order="hold">Cessar fogo</button></div>
+<div class="hint">Atacar = perseguir alvo marcado e disparar. Defender = manter área designada, podendo reagir.</div>
+<div id="combat-log" aria-live="polite">Aguardando eventos de combate...</div></div></section>
 <section class="panel" id="help"><h2>ⓘ CONTROLES DO LABORATÓRIO</h2><div class="body">
 <b>Soldado</b>: WASD mover, Shift correr, mouse mirar, clique atirar, Espaço pular, C agachar, E entrar, R recarregar.<br>
 <b>Veículos</b>: WASD mover/guinar, mouse aponta a arma, clique atira, E sair, F trocar posto.<br>
@@ -36,7 +43,7 @@ header{position:fixed;top:8px;left:8px;right:8px;display:flex;gap:7px;align-item
 </div></section>
 <div id="reticle">+</div><div id="hud" aria-live="polite">Inicializando laboratório...</div>
 <div id="notice" role="status">Clique no cenário e use WASD. Pressione K para capturar o mouse.</div>
-<div id="map"><h2>MAPA TÁTICO · WMK</h2><canvas id="mapcanvas" width="900" height="560"></canvas><div class="row"><button id="map-close">Fechar (M)</button><button id="map-assume">Assumir selecionado</button><button id="map-hold">Manter posição</button><button id="map-patrol">Patrulhar até o ponto</button></div><p>Selecione uma unidade aliada e depois clique no mapa para definir um destino. A simulação continua.</p></div>
+<div id="map"><h2>MAPA TÁTICO · WMK</h2><canvas id="mapcanvas" width="900" height="560"></canvas><div class="row"><button id="map-close">Fechar (M)</button><button id="map-assume">Assumir selecionado</button><button id="map-hold">Manter posição</button><button id="map-patrol">Patrulhar até o ponto</button><button id="map-attack">Ataque de esquadrão</button></div><p>Selecione uma unidade aliada e depois clique no mapa para definir um destino. A simulação continua.</p></div>
 <input type="file" id="file" accept="application/json,.json" hidden>
 <footer id="footer">Walney Moreira Klein · walneyk@hotmail.com · WMK Combined Arms · Licença MIT</footer>
 <script type="module" src="./src/lab/unit-control.js"></script>
