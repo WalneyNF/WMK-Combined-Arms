@@ -1,0 +1,16 @@
+name: Validação estática WMK
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar projeto
+        run: python3 scripts/check_project.py
