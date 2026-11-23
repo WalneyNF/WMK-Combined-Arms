@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "id": "artillery",
   "type": "artillery",
-  "name": "ARTILHARIA",
+  "name": "AAP — ARTILHARIA AUTOPROPULSADA",
   "category": "artillery",
-  "role": "apoio de fogo indireto",
+  "role": "apoio de fogo indireto com obuseiro sobre lagartas",
   "weapon": "OBUSEIRO 155 MM",
-  "description": "PROJÉTIL EXPLOSIVO · RECARGA LENTA",
+  "description": "MIRA ESTRATÉGICA (V) · TIRO BALÍSTICO · EXPLOSÃO EM ÁREA",
   "maxSpeed": 8,
   "response": 1.4,
   "turn": 0.48,
-  "rate": 2.9,
+  "rate": 4.5,
   "damage": 95,
   "shotSpeed": 125,
   "boost": 1.15,
@@ -34,6 +34,16 @@
     "fire": "Space",
     "secondary": "F",
     "ascend": null,
-    "descend": null
+    "descend": null,
+    "strategicCamera": "V"
+  },
+  "artillery": {
+    "kind": "self_propelled",
+    "strategicCameraKey": "V",
+    "gravity": 32,
+    "maximumRange": 350,
+    "minimumRange": 12,
+    "aoeRadius": 19,
+    "flightModel": "arcade"
   }
 }
