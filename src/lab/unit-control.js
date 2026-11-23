@@ -290,6 +290,11 @@ function renderMap(){
     ctx.beginPath();ctx.arc(x,y,e.id===activeId?9:7,0,Math.PI*2);ctx.fill();
     ctx.fillStyle="#ebf9f4";ctx.font="13px system-ui";ctx.fillText(e.name,x+13,y+4);
     if(e.id===selectedMapId){ctx.strokeStyle="#ffce63";ctx.lineWidth=2;ctx.strokeRect(x-12,y-12,24,24)}
+    if(e.id===selectedMapId&&e.navPath?.length){
+      ctx.strokeStyle="#f1d580";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y);
+      for(const waypoint of e.navPath){const [px,py]=worldToMap(waypoint.x,waypoint.z);ctx.lineTo(px,py)}
+      ctx.stroke();
+    }
   }
   const [tx,ty]=worldToMap(mapTarget[0],mapTarget[2]);
   ctx.strokeStyle="#ffcb77";ctx.beginPath();ctx.moveTo(tx-9,ty);ctx.lineTo(tx+9,ty);ctx.moveTo(tx,ty-9);ctx.lineTo(tx,ty+9);ctx.stroke();
@@ -378,19 +383,68 @@ function updateSoldier(e,dt,now){
 }
 function botUpdate(e,dt){
   if(e.health<=0||e.aboard)return;
-  if(e.order==="hold"){if(e.kind==="heli"){e.group.userData.rotor.rotation.y+=dt*24;e.group.userData.tail.rotation.x+=dt*28;}return;}
   const p=e.group.position;
-  let point=e.target;
-  if(e.order==="follow"&&e.id!==activeId)point=active().group.position.toArray();
-  let dir=new THREE.Vector3(point[0]-p.x,0,point[2]-p.z);
-  if(e.kind==="heli"){if(e.order==="patrol"&&dir.length()<8){e.target=[-e.target[0],12,-e.target[2]];dir=new THREE.Vector3(e.target[0]-p.x,0,e.target[2]-p.z)}
-    p.y=THREE.MathUtils.lerp(p.y,12,.03);e.group.userData.rotor.rotation.y+=dt*24;e.group.userData.tail.rotation.x+=dt*28}
-  const margin=e.kind==="tank"?11:5;
-  if(dir.length()>margin){dir.normalize();let speed=e.kind==="heli"?10:e.kind==="tank"?6:3;
-    p.x=bound(p.x+dir.x*speed*dt);p.z=bound(p.z+dir.z*speed*dt);
+  if(e.kind==="heli"){
+    // Aeronaves seguem rota aérea direta nesta fase, sem grade terrestre.
+    e.group.userData.rotor.rotation.y+=dt*24;
+    e.group.userData.tail.rotation.x+=dt*28;
+    p.y=THREE.MathUtils.lerp(p.y,12,Math.min(1,dt*1.8));
+    if(e.order==="hold")return;
+    const target=e.order==="follow"?active().group.position.toArray():e.target;
+    const dir=new THREE.Vector3(target[0]-p.x,0,target[2]-p.z);
+    if(dir.length()>9){
+      dir.normalize();p.x=bound(p.x+dir.x*10*dt);p.z=bound(p.z+dir.z*10*dt);
+      e.group.rotation.y=Math.atan2(-dir.x,-dir.z);
+    }else if(e.order==="patrol")e.target=[-e.target[0],12,-e.target[2]];
+    return;
+  }
+  if(e.order==="hold"){e.navPath=[];e.navStatus="parado";return}
+  const following=e.order==="follow";
+  let target=following?active().group.position.toArray():e.target;
+  if(!Array.isArray(target))return;
+  let targetX=target[0],targetZ=target[2];
+  if(following&&isVehicle(active())){
+    // Não encaminhar soldado ao centro de um tanque ou da aeronave.
+    targetX+=Math.cos(active().group.rotation.y)*12;
+    targetZ-=Math.sin(active().group.rotation.y)*12;
+  }else if(following){
+    targetX+=3;targetZ+=3;
+  }
+  const distance=Math.hypot(targetX-p.x,targetZ-p.z);
+  const threshold=following?5:3;
+  if(distance<=threshold){
+    e.navPath=[];e.navStatus="no destino";
+    if(!following&&e.order==="patrol")e.target=[-e.target[0],e.target[1],-e.target[2]];
+    return;
+  }
+  const destination={x:targetX,z:targetZ};
+  e.aiTime=(e.aiTime||0)-dt;
+  if(e.aiTime<=0||!e.navDestination||Math.hypot(e.navDestination.x-targetX,e.navDestination.z-targetZ)>6||!e.navPath?.length){
+    e.aiTime=1.7;
+    // O tanque estacionado alvo é excluído se estiver sendo seguido por uma unidade terrestre,
+    // mas o objetivo é deslocado 12 unidades para fora da carroceria.
+    e.navPath=findPath({x:p.x,z:p.z},destination,{
+      radius:groundRadius(e),cellSize:e.kind==="tank"?8:6,
+      obstacles:obstacles(e.id)
+    });
+    e.navDestination=destination;
+    e.navStatus=e.navPath.length?"navegando":"sem rota";
+  }
+  if(!e.navPath?.length)return;
+  let waypoint=e.navPath[0];
+  const waypointDistance=Math.hypot(waypoint.x-p.x,waypoint.z-p.z);
+  if(waypointDistance<2.1){
+    e.navPath.shift();waypoint=e.navPath[0];
+    if(!waypoint)return;
+  }
+  const dx=waypoint.x-p.x,dz=waypoint.z-p.z,magnitude=Math.hypot(dx,dz);
+  if(magnitude>0.0001){
+    const movement=Math.min(magnitude,(e.kind==="tank"?6:3.7)*dt);
+    p.x=bound(p.x+dx/magnitude*movement);
+    p.z=bound(p.z+dz/magnitude*movement);
     collide(e);
-    e.group.rotation.y=Math.atan2(-dir.x,-dir.z)}
-  else if(e.order==="patrol"){e.target=[-e.target[0],e.target[1],-e.target[2]]}
+    e.group.rotation.y=Math.atan2(-dx,-dz);
+  }
   if(e.kind==="tank")p.y=0;
 }
 function updateVehicle(e,dt){
@@ -439,6 +493,7 @@ function updateHUD(){
     "<br><b>Estado soldado:</b> "+(person().aboard?"a bordo "+person().aboard:"a pé")+
     "<br><b>Bot tanque:</b> "+(activeId==="tank-001"?"jogador":entities.get("tank-001").order)+
     "<br><b>Bot helicóptero:</b> "+(activeId==="heli-001"?"jogador":entities.get("heli-001").order)+
+    "<br><b>IA selecionada:</b> "+(entities.get(selectedMapId)?.navStatus||"sem navegação")+
     "<br><b>FPS:</b> "+Math.round(1/Math.max(.0001,frameDt));
   const near=e.kind==="soldier"?nearestVehicle():null;
   if(near&&toastTime<=0)$("notice").textContent="Pressione E para entrar em "+near.name;
