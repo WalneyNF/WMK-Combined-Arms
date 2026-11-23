@@ -7,6 +7,7 @@ import { hasLineOfSight } from "./navigation.mjs";
 import { FORMATIONS,formationDestination } from "./formation.mjs";
 import { validateMission,startMission,advanceMission,missionProgress,presetMission } from "./mission.mjs";
 import { validateRoster,defaultRoster } from "./scenario.mjs";
+import {validateWaypoints,nextPatrolWaypoint} from "./patrol.mjs";
 import { validateProps,propBlockers } from "./scenery.mjs";
 
 // WMK Unit Control Lab v0.3.0 — protótipo isolado, sem alterar o jogo principal.
@@ -154,7 +155,7 @@ function validateUnit(u){
     health:Math.max(0,safeNumber(u.health,100,10000)),maxHealth:Math.max(1,safeNumber(u.maxHealth,100,10000)),
     speed:safeNumber(u.speed),yaw:safeNumber(u.yaw,0,10000),ammo:Math.max(0,Math.floor(safeNumber(u.ammo,0,10000))),
     reserve:Math.max(0,Math.floor(safeNumber(u.reserve,0,10000))),cooldown:Math.max(0,safeNumber(u.cooldown,0,1000)),reload:Math.max(0,safeNumber(u.reload,0,1000)),
-    order:validateOrder(u.order),seat:null,
+    order:validateOrder(u.order),seat:null,patrolPoints:validateWaypoints(u.patrolPoints),patrolIndex:Number.isInteger(u.patrolIndex)&&u.patrolIndex>=0?u.patrolIndex:0,
     kills:Math.max(0,Math.floor(safeNumber(u.kills,0,10000))),score:Math.max(0,Math.floor(safeNumber(u.score,0,1000000))),
     holdFire:Boolean(u.holdFire),designatedTargetId:typeof u.designatedTargetId==="string"?u.designatedTargetId:null,
     crew:normalizeCrew(u.kind,u.crew),aboard:typeof u.aboard==="string"?u.aboard:null,aboardSeat:typeof u.aboardSeat==="string"?u.aboardSeat:null};
@@ -176,7 +177,7 @@ function notice(txt){$("notice").textContent=txt;toastTime=4}
 function isVehicle(e){return e?.kind==="tank"||e?.kind==="heli"}
 function person(){return entities.get(lastSoldierId)||[...entities.values()].find(u=>u.kind==="soldier"&&u.faction==="allies")}
 function unitState(e){const {group,aiTime,jumpTime,navPath,navDestination,navStatus,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
-function snapshot(){return {schemaVersion:1,labVersion:"0.3.7",props:activeProps,activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],squadFormation,missionState,units:[...entities.values()].map(unitState)}}
+function snapshot(){return {schemaVersion:1,labVersion:"0.3.8",props:activeProps,activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],squadFormation,missionState,units:[...entities.values()].map(unitState)}}
 function loadSnapshot(data){
   if(!data||data.schemaVersion!==1||!Array.isArray(data.units)||data.units.length<1||data.units.length>40)throw Error("Arquivo não é um save WMK válido");
   const preparedProps=validateProps(data.props||data.missionState?.definition?.props||[]);
@@ -237,7 +238,7 @@ function loadSnapshot(data){
 }
 function saveLocal(){try{localStorage.setItem(saveKey,JSON.stringify(snapshot()));notice("Batalha salva neste navegador")}catch(e){notice("Não foi possível salvar: "+e.message)}}
 function download(text,name){const href=URL.createObjectURL(new Blob([text],{type:"application/json"}));const a=document.createElement("a");a.href=href;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(href),2000)}
-$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v037.json");
+$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v038.json");
 $("import").onclick=()=>$("file").click();$("file").onchange=async ev=>{const file=ev.target.files?.[0];if(!file)return;try{if(file.size>250000)throw Error("Máximo 250 KB");loadSnapshot(JSON.parse(await file.text()));notice("Batalha importada")}catch(e){notice("Falha na importação: "+e.message)}finally{ev.target.value=""}};
 $("reset").onclick=()=>{if(!confirm("Reiniciar o laboratório e perder as alterações não exportadas?"))return;try{localStorage.removeItem(saveKey)}catch{}location.reload()};
 try{const saved=localStorage.getItem(saveKey);if(saved)loadSnapshot(JSON.parse(saved))}catch(e){console.warn("Save ignorado",e);notice("Save antigo inválido; usando cenário padrão")}
@@ -476,6 +477,11 @@ function renderMap(){
     ctx.beginPath();ctx.arc(x,y,e.id===activeId?9:7,0,Math.PI*2);ctx.fill();
     ctx.fillStyle="#ebf9f4";ctx.font="13px system-ui";ctx.fillText(e.name,x+13,y+4);
     if(e.id===selectedMapId){ctx.strokeStyle="#ffce63";ctx.lineWidth=2;ctx.strokeRect(x-12,y-12,24,24)}
+    if(e.patrolPoints?.length){
+      ctx.strokeStyle=e.faction==="enemy"?"#f39a91":"#e9d596";ctx.lineWidth=1.4;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(x,y);
+      e.patrolPoints.forEach((point,i)=>{const [px,py]=worldToMap(point[0],point[2]);ctx.lineTo(px,py)});
+      ctx.stroke();ctx.setLineDash([]);
+    }
     if(e.id===selectedMapId&&e.navPath?.length){
       ctx.strokeStyle="#f1d580";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y);
       for(const waypoint of e.navPath){const [px,py]=worldToMap(waypoint.x,waypoint.z);ctx.lineTo(px,py)}
@@ -718,15 +724,23 @@ function botUpdate(e,dt){
     e.group.userData.tail.rotation.x+=dt*28;
     p.y=THREE.MathUtils.lerp(p.y,12,Math.min(1,dt*1.8));
     if(e.order==="hold")return;
+    if(e.order==="patrol"&&e.patrolPoints?.length){
+      const next=nextPatrolWaypoint(e.patrolPoints,e.patrolIndex,p.toArray(),9);
+      e.patrolIndex=next.index;e.target=next.target;
+    }
     const target=e.order==="follow"?active().group.position.toArray():e.target;
     const dir=new THREE.Vector3(target[0]-p.x,0,target[2]-p.z);
     if(dir.length()>9){
       dir.normalize();p.x=bound(p.x+dir.x*10*dt);p.z=bound(p.z+dir.z*10*dt);
       e.group.rotation.y=Math.atan2(-dir.x,-dir.z);
-    }else if(e.order==="patrol")e.target=[-e.target[0],12,-e.target[2]];
+    }else if(e.order==="patrol"&&!e.patrolPoints?.length)e.target=[-e.target[0],12,-e.target[2]];
     return;
   }
   if(e.order==="hold"){e.navPath=[];e.navStatus="parado";return}
+  if(e.order==="patrol"&&e.patrolPoints?.length){
+    const next=nextPatrolWaypoint(e.patrolPoints,e.patrolIndex,p.toArray(),4);
+    e.patrolIndex=next.index;e.target=next.target;
+  }
   const following=e.order==="follow";
   const attacking=e.order==="attack";
   let designated=attacking?entities.get(e.designatedTargetId):null;
@@ -756,7 +770,7 @@ function botUpdate(e,dt){
   const threshold=following?5:attacking?Math.min(25,COMBAT[e.kind]?.range*.45||12):3;
   if(distance<=threshold){
     e.navPath=[];e.navStatus=attacking?"em alcance":"no destino";
-    if(!following&&e.order==="patrol")e.target=[-e.target[0],e.target[1],-e.target[2]];
+    if(!following&&e.order==="patrol"&&!e.patrolPoints?.length)e.target=[-e.target[0],e.target[1],-e.target[2]];
     return;
   }
   const destination={x:targetX,z:targetZ};
