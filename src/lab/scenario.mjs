@@ -1,3 +1,4 @@
+import {validateWaypoints} from "./patrol.mjs";
 // WMK Combined Arms — instâncias de unidades de uma missão (v0.3.6).
 // Os IDs, tipos e atributos de cada unidade são serializados e validados.
 // A renderização e os controles são responsabilidade do laboratório Three.js.
@@ -37,7 +38,7 @@ export function validateSpawn(raw){
   return {
     id:raw.id,kind:raw.kind,name:raw.name.trim(),faction:raw.faction,
     position:[x,y,z],yaw:raw.yaw,maxHealth,health,ammo,reserve,
-    order:raw.order||"hold",
+    order:raw.order||"hold",patrolPoints:validateWaypoints(raw.patrolPoints),
     target:Array.isArray(raw.target)&&raw.target.length===3&&raw.target.every(finite)?
       [...raw.target]:[x,y,z]
   };
