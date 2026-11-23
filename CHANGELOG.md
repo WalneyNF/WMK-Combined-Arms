@@ -1,5 +1,16 @@
 # Histórico de alterações
 
+## [0.3.0-lab] — 2026-11-23 (experimental e separado)
+
+- Publicado `unit-control-lab.html` e `src/lab/unit-control.js`.
+- Soldado em terceira pessoa com movimentos, pulo, agachar, recarga e disparo de treinamento.
+- Tanque e helicóptero com identidade persistente, controle remoto e interação de embarque/desembarque.
+- Postos de motorista/atirador/comandante e piloto/atirador de porta.
+- Bots aliados com ordens de manter, patrulhar e seguir (movimento simples).
+- Mapa tático, painel de depuração, salvar/importar/exportar JSON e painéis móveis.
+- Manual próprio e verificação sintática no GitHub Actions.
+- Sem integração ao jogo principal; não é versão final de veículos ou IA.
+
 ## [0.2.0] — 2026-11-23
 
 - Acrescentadas cinco classes controláveis: soldado, artilharia, avião, submarino e APC.
