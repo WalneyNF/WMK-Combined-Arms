@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "artillery",
+  "type": "artillery",
+  "name": "ARTILHARIA",
+  "category": "artillery",
+  "role": "apoio de fogo indireto",
+  "weapon": "OBUSEIRO 155 MM",
+  "description": "PROJÉTIL EXPLOSIVO · RECARGA LENTA",
+  "maxSpeed": 8,
+  "response": 1.4,
+  "turn": 0.48,
+  "rate": 2.9,
+  "damage": 95,
+  "shotSpeed": 125,
+  "boost": 1.15,
+  "cameraDistance": 40,
+  "cameraHeight": 19,
+  "maxHp": 150,
+  "spawn": {
+    "x": -95,
+    "z": 83,
+    "yaw": 0
+  },
+  "model": {
+    "kind": "procedural",
+    "asset": null
+  },
+  "controls": {
+    "forward": "W",
+    "reverse": "S",
+    "left": "A",
+    "right": "D",
+    "fire": "Space",
+    "secondary": "F",
+    "ascend": null,
+    "descend": null
+  }
+}
