@@ -204,6 +204,8 @@ function assume(id,fromBoard=false){
 function disembark(){
   const soldier=person(),vehicle=soldier.aboard?entities.get(soldier.aboard):null;
   if(!vehicle){notice("Controle remoto: pressione 1 para voltar ao soldado.");return}
+  if(vehicle.kind==="heli"&&vehicle.group.position.y>5)return notice("Aterre o helicóptero antes de desembarcar.");
+  if(Math.abs(vehicle.speed)>2)return notice("Pare o veículo antes de desembarcar.");
   const blockers=obstacles(vehicle.id);
   blockers.push({x:vehicle.group.position.x,z:vehicle.group.position.z,radius:groundRadius(vehicle)});
   const exit=findSafeExit(vehicle.group.position,vehicle.group.rotation.y,blockers);
@@ -217,6 +219,8 @@ function disembark(){
 function nearestVehicle(){
   const p=person().group.position;let best=null,distance=Infinity;
   for(const e of entities.values())if(isVehicle(e)&&e.health>0){
+    if(e.kind==="heli"&&e.group.position.y>5)continue;
+    if(Math.abs(e.speed)>2)continue;
     const d=p.distanceTo(e.group.position);if(d<distance&&d<17){best=e;distance=d}
   }
   return best;
@@ -273,7 +277,11 @@ $("goto").onclick=()=>{selectedMapId=$("order-target").value;setOrder(selectedMa
 $("quality").onchange=()=>{const q=$("quality").value;renderer.setPixelRatio(Math.min(devicePixelRatio,q==="baixo"?.7:q==="alto"?1.8:1.15));renderer.shadowMap.enabled=q==="alto"};
 $("quality").dispatchEvent(new Event("change"));
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),mapCanvas=$("mapcanvas"),ctx=mapCanvas.getContext("2d");
-function toggleMap(show=!mapOpen){mapOpen=show;$("map").classList.toggle("show",show);if(show&&document.pointerLockElement)document.exitPointerLock();renderMap()}
+function toggleMap(show=!mapOpen){
+  mapOpen=show;$("map").classList.toggle("show",show);
+  if(show){keys.clear();mouseDown=false;if(document.pointerLockElement)document.exitPointerLock()}
+  renderMap();
+}
 $("map-close").onclick=()=>toggleMap(false);
 $("map-assume").onclick=()=>{assume(selectedMapId,false);toggleMap(false)};
 $("map-hold").onclick=()=>setOrder(selectedMapId,"hold");
@@ -364,6 +372,7 @@ function updateSoldier(e,dt,now){
   if(e.aboard){e.group.visible=false;return}
   if(e.health<=0)return;
   if(e.id!==activeId){botUpdate(e,dt);return}
+  if(mapOpen)return;
   let x=(keys.has("KeyD")?1:0)-(keys.has("KeyA")?1:0),z=(keys.has("KeyS")?1:0)-(keys.has("KeyW")?1:0);
   const dir=new THREE.Vector3(x,0,z);if(dir.length()>0)dir.normalize();
   const right=new THREE.Vector3(Math.cos(cameraYaw),0,-Math.sin(cameraYaw)),fr=forward(cameraYaw);
@@ -449,7 +458,7 @@ function botUpdate(e,dt){
 }
 function updateVehicle(e,dt){
   if(e.id!==activeId){botUpdate(e,dt);return}
-  const stats=defs[e.kind],driving=currentSeat==="driver"||currentSeat==="pilot";
+  const stats=defs[e.kind],driving=!mapOpen&&(currentSeat==="driver"||currentSeat==="pilot");
   if(driving){
     const input=(keys.has("KeyW")?1:0)-(keys.has("KeyS")?1:0);
     e.speed=THREE.MathUtils.lerp(e.speed,input*stats.maxSpeed*(keys.has("ShiftLeft")?stats.run:1),Math.min(1,stats.acceleration*dt));
@@ -503,14 +512,15 @@ let frameDt=.016,frameCount=0;
 function animate(now){
   requestAnimationFrame(animate);
   const dt=Math.min((now-last)/1000,.04);last=now;frameDt=dt||.016;elapsed+=dt;
-  if(!mapOpen){for(const e of entities.values()){
+  // A simulação segue ativa no mapa tático; somente a entrada do jogador fica bloqueada.
+  for(const e of entities.values()){
     e.cooldown=Math.max(0,e.cooldown-dt);
     if(e.reload>0){e.reload-=dt;if(e.reload<=0){const n=Math.min(defs[e.kind].magazine-e.ammo,e.reserve);e.ammo+=n;e.reserve-=n;notice("Recarregado: "+e.name)}}
     if(e.kind==="soldier")updateSoldier(e,dt,elapsed);
     else if(isVehicle(e))updateVehicle(e,dt);
   }
-  if(mouseDown)fire();
-  updateShots(dt);}
+  if(mouseDown&&!mapOpen)fire();
+  updateShots(dt);
   updateCamera(dt);renderer.render(scene,camera);
   debugTimer+=dt;if(debugTimer>.25){updateHUD();if(mapOpen)renderMap();debugTimer=0}
   if(toastTime>0)toastTime-=dt;
