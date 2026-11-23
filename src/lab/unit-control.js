@@ -5,6 +5,7 @@ import { seatList,normalizeCrew,boardCrew,leaveCrew,crewSeat,nextAvailableSeat }
 import { COMBAT,canEngage,selectCombatTarget,applyDamage,calculateScore,assignSquadOrder,validateOrder } from "./combat.mjs";
 import { hasLineOfSight } from "./navigation.mjs";
 import { FORMATIONS,formationDestination } from "./formation.mjs";
+import { validateMission,startMission,advanceMission,missionProgress,presetMission } from "./mission.mjs";
 
 // WMK Unit Control Lab v0.3.0 — protótipo isolado, sem alterar o jogo principal.
 // Entidade, controle e assento são conceitos separados. O mundo nunca é reiniciado ao trocar.
@@ -115,6 +116,7 @@ let activeId="soldier-001",lastSoldierId="soldier-001",currentSeat="foot",camera
 let mouseDown=false, paused=false, mapOpen=false,selectedMapId="tank-001",mapTarget=[0,0,0], missionKills=0;
 let missionScore=0,squadSelection=new Set(["soldier-002","tank-001"]),combatLog=[];
 let squadFormation="wedge";
+let missionState=startMission(presetMission("patrol")),missionAlerted=false;
 let last=performance.now(),elapsed=0,toastTime=0,shotEffects=[];
 const keys=new Set(),saveKey="wmk-unit-control-lab-v030",panelKey="wmk-unit-control-layout-v030";
 const vec=(p)=>new THREE.Vector3(...p),forward=y=>new THREE.Vector3(-Math.sin(y),0,-Math.cos(y));
@@ -149,7 +151,7 @@ function notice(txt){$("notice").textContent=txt;toastTime=4}
 function isVehicle(e){return e?.kind==="tank"||e?.kind==="heli"}
 function person(){return entities.get(lastSoldierId)||entities.get("soldier-001")}
 function unitState(e){const {group,aiTime,jumpTime,navPath,navDestination,navStatus,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
-function snapshot(){return {schemaVersion:1,labVersion:"0.3.4",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],squadFormation,units:[...entities.values()].map(unitState)}}
+function snapshot(){return {schemaVersion:1,labVersion:"0.3.5",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],squadFormation,missionState,units:[...entities.values()].map(unitState)}}
 function loadSnapshot(data){
   if(!data||data.schemaVersion!==1||!Array.isArray(data.units)||data.units.length<3||data.units.length>20)throw Error("Arquivo não é um save WMK válido");
   const seen=new Set(),updated=data.units.map(x=>validateUnit(x));
@@ -159,6 +161,9 @@ function loadSnapshot(data){
   for(const u of updated)createEntity(u);
   // Compatibilidade com saves da v0.3.0: adiciona a nova unidade se não existir.
   if(!entities.has("soldier-002"))createEntity(defaults.find(u=>u.id==="soldier-002"));
+  // Compatibilidade: as patrulhas móveis chegaram na v0.3.4.
+  for(const enemyId of ["enemy-soldier-001","enemy-soldier-002"])
+    if(!entities.has(enemyId))createEntity(defaults.find(u=>u.id===enemyId));
   activeId=entities.get(data.activeId)?.faction==="allies"&&entities.get(data.activeId).health>0?data.activeId:
     ([...entities.values()].find(e=>e.faction==="allies"&&e.health>0)?.id||"soldier-001");
   lastSoldierId=entities.get(data.lastSoldierId)?.kind==="soldier"?data.lastSoldierId:"soldier-001";
@@ -180,14 +185,39 @@ function loadSnapshot(data){
   squadFormation=FORMATIONS.includes(data.squadFormation)?data.squadFormation:"wedge";
   const formationControl=document.getElementById("squad-formation");if(formationControl)formationControl.value=squadFormation;
   for(const enemy of entities.values())if(enemy.faction==="enemy"&&enemy.kind==="target"&&enemy.health>0&&enemy.ammo===0)enemy.ammo=500;
-  renderControls();renderCrewPanel();renderSquadPanel();
+  if(data.missionState?.definition){
+    try{
+      const safe=startMission(validateMission(data.missionState.definition));
+      if(data.missionState.objectives && typeof data.missionState.objectives==="object"){
+        for(const objective of safe.definition.objectives){
+          const saved=data.missionState.objectives[objective.id];
+          if(!saved || !["pending","completed","failed"].includes(saved.status))continue;
+          safe.objectives[objective.id]={status:saved.status,progress:Math.max(0,Math.min(objective.duration,Number(saved.progress)||0))};
+        }
+      }
+      safe.elapsed=Math.max(0,Math.min(999999,Number(data.missionState.elapsed)||0));
+      const values=Object.values(safe.objectives);
+      safe.status=values.some(v=>v.status==="failed")?"failed":
+        values.every(v=>v.status==="completed")?"completed":"running";
+      missionState=safe;
+    }catch(e){console.warn("Missão salva ignorada",e)}
+  }
+  missionAlerted=missionState.status!=="running";
+  renderControls();renderCrewPanel();renderSquadPanel();renderMissionPanel();
 }
 function saveLocal(){try{localStorage.setItem(saveKey,JSON.stringify(snapshot()));notice("Batalha salva neste navegador")}catch(e){notice("Não foi possível salvar: "+e.message)}}
 function download(text,name){const href=URL.createObjectURL(new Blob([text],{type:"application/json"}));const a=document.createElement("a");a.href=href;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(href),2000)}
-$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v034.json");
+$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v035.json");
 $("import").onclick=()=>$("file").click();$("file").onchange=async ev=>{const file=ev.target.files?.[0];if(!file)return;try{if(file.size>250000)throw Error("Máximo 250 KB");loadSnapshot(JSON.parse(await file.text()));notice("Batalha importada")}catch(e){notice("Falha na importação: "+e.message)}finally{ev.target.value=""}};
 $("reset").onclick=()=>{if(!confirm("Reiniciar o laboratório e perder as alterações não exportadas?"))return;try{localStorage.removeItem(saveKey)}catch{}location.reload()};
 try{const saved=localStorage.getItem(saveKey);if(saved)loadSnapshot(JSON.parse(saved))}catch(e){console.warn("Save ignorado",e);notice("Save antigo inválido; usando cenário padrão")}
+if(new URLSearchParams(location.search).get("mission")==="custom"){
+  try{
+    const mission=validateMission(JSON.parse(localStorage.getItem("wmk-ca-mission-v035")||"null"));
+    missionState=startMission(mission);missionAlerted=false;
+    notice("Missão personalizada carregada: "+mission.name);
+  }catch(e){notice("Falha ao carregar missão do editor: "+e.message)}
+}
 function renderControls(){
   const list=$("units-list"),select=$("order-target");list.replaceChildren();select.replaceChildren();
   for(const e of entities.values()){
@@ -287,6 +317,35 @@ function renderCrewPanel(){
     root.appendChild(b);
   }
 }
+function loadMissionDefinition(raw){
+  missionState=startMission(validateMission(raw));
+  missionAlerted=false;
+  renderMissionPanel();
+  addCombatLog("Missão iniciada: "+missionState.definition.name);
+  notice("MISSÃO CARREGADA · "+missionState.definition.name);
+}
+function renderMissionPanel(){
+  const root=document.getElementById("mission-objectives"),status=document.getElementById("mission-status");
+  if(!root||!status||!missionState)return;
+  const progress=missionProgress(missionState);
+  status.textContent=missionState.definition.name+" · "+progress.completed+"/"+progress.total+
+    " concluídos · "+missionState.status.toUpperCase();
+  root.replaceChildren();
+  for(const objective of missionState.definition.objectives){
+    const state=missionState.objectives[objective.id];
+    const row=document.createElement("div");
+    row.className="mission-objective";
+    const icon=state.status==="completed"?"✓":state.status==="failed"?"✕":"○";
+    row.textContent=icon+" "+objective.title+
+      (state.status==="pending"&&["capture","defend"].includes(objective.type)?
+        " · "+Math.round(state.progress)+"/"+objective.duration+"s":"");
+    root.append(row);
+  }
+}
+const missionSelect=document.getElementById("mission-preset");
+if(missionSelect)missionSelect.onchange=()=>loadMissionDefinition(presetMission(missionSelect.value));
+const missionReset=document.getElementById("mission-restart");
+if(missionReset)missionReset.onclick=()=>loadMissionDefinition(missionState.definition);
 function addCombatLog(message) {
   combatLog.unshift({at:Math.round(elapsed),message});
   if(combatLog.length>12)combatLog.length=12;
@@ -380,6 +439,14 @@ function renderMap(){
   for(const enemy of entities.values())if(enemy.faction==="enemy"&&enemy.health>0&&enemy.id===document.getElementById("squad-target")?.value){
     const [x,z]=worldToMap(enemy.group.position.x,enemy.group.position.z);
     ctx.strokeStyle="#ffcd82";ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,z,17,0,Math.PI*2);ctx.stroke();
+  }
+  if(missionState){
+    for(const o of missionState.definition.objectives){
+      const [ox,oy]=worldToMap(o.position[0],o.position[2]);
+      ctx.strokeStyle=missionState.objectives[o.id].status==="completed"?"#7fe0ba":"#f7d38a";
+      ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(ox,oy,o.radius*1.35,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle="#fff2bd";ctx.font="11px system-ui";ctx.fillText(o.title,ox+9,oy-9);
+    }
   }
   const [tx,ty]=worldToMap(mapTarget[0],mapTarget[2]);
   ctx.strokeStyle="#ffcb77";ctx.beginPath();ctx.moveTo(tx-9,ty);ctx.lineTo(tx+9,ty);ctx.moveTo(tx,ty-9);ctx.lineTo(tx,ty+9);ctx.stroke();
@@ -714,8 +781,16 @@ function animate(now){
   if(mouseDown&&!mapOpen)fire();
   updateBotCombat(dt);
   updateShots(dt);
+  if(missionState?.status==="running"){
+    missionState=advanceMission(missionState,[...entities.values()].map(unitState),dt);
+    if(missionState.status!=="running"&&!missionAlerted){
+      missionAlerted=true;
+      addCombatLog(missionState.status==="completed"?"MISSÃO CONCLUÍDA":"MISSÃO FRACASSOU");
+      notice(missionState.status==="completed"?"TODOS OS OBJETIVOS CUMPRIDOS":"MISSÃO FRACASSOU");
+    }
+  }
   updateCamera(dt);renderer.render(scene,camera);
-  debugTimer+=dt;if(debugTimer>.25){updateHUD();if(mapOpen)renderMap();debugTimer=0}
+  debugTimer+=dt;if(debugTimer>.25){updateHUD();renderMissionPanel();if(mapOpen)renderMap();debugTimer=0}
   if(toastTime>0)toastTime-=dt;
 }
 window.addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
@@ -730,4 +805,4 @@ function saveLayout(){const layout={};for(const p of document.querySelectorAll("
 try{const layout=JSON.parse(localStorage.getItem(panelKey)||"{}");for(const p of document.querySelectorAll(".panel"))if(layout[p.id]){const d=layout[p.id];p.style.left=Math.max(0,d.x)+"px";p.style.top=Math.max(0,d.y)+"px";p.style.width=d.w+"px";p.style.height=d.h+"px";p.style.right="auto";p.style.bottom="auto"}}catch{}
 $("layouts").onclick=()=>{try{localStorage.removeItem(panelKey)}catch{}location.reload()};
 window.addEventListener("beforeunload",()=>{try{localStorage.setItem(saveKey,JSON.stringify(snapshot()))}catch{}});
-renderControls();renderCrewPanel();requestAnimationFrame(animate);
+renderControls();renderCrewPanel();renderMissionPanel();requestAnimationFrame(animate);
