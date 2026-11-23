@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "plane",
+  "type": "plane",
+  "name": "AVIÃO",
+  "category": "aircraft",
+  "role": "ataque aéreo arcade",
+  "weapon": "METRALHADORAS AÉREAS",
+  "description": "ARMAMENTO AÉREO · VELOCIDADE",
+  "maxSpeed": 110,
+  "response": 1.8,
+  "turn": 1.2,
+  "rate": 0.12,
+  "damage": 10,
+  "shotSpeed": 235,
+  "boost": 1.5,
+  "cameraDistance": 65,
+  "cameraHeight": 22,
+  "maxHp": 90,
+  "spawn": {
+    "x": 102,
+    "z": 105,
+    "yaw": 0,
+    "altitude": 70
+  },
+  "model": {
+    "kind": "procedural",
+    "asset": null
+  },
+  "controls": {
+    "forward": "W",
+    "reverse": "S",
+    "left": "A",
+    "right": "D",
+    "fire": "Space",
+    "secondary": "F",
+    "ascend": "Q",
+    "descend": "E"
+  }
+}
