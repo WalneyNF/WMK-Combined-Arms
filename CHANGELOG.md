@@ -1,5 +1,16 @@
 # Histórico de alterações
 
+## [0.3.7-lab] — 2026-11-23 (editor de mapas experimental)
+
+- Novo modo Construções no Mission Studio: edificação, muro, caixa, torre e barreira.
+- Propriedades editáveis por objeto: nome, ID, tipo, posição XYZ, rotação, largura, altura, profundidade e colisão.
+- Inserir, selecionar, reposicionar pelo mapa, duplicar e excluir objetos, com limite de 120 por missão.
+- Contrato JSON `props` validado e persistido nos arquivos de missão e saves de batalha.
+- Renderização de objetos adicionais em Three.js no laboratório, inclusive variantes por categoria.
+- Colisões terrestres, trajetos de bots com A* e verificação de linha de visão utilizam footprints do mapa.
+- Novos testes de cenários com objetos, colisão, navegação e validação de identificadores.
+- Limites: colisões retangulares conservadoras, sem física rígida, terreno esculpível nem edição 3D com gizmos.
+
 ## [0.3.6-lab] — 2026-11-23 (cenários e spawns editáveis)
 
 - Editor de missões: modo Unidades e Objetivos, inserção de soldados, tanques, helicópteros e alvos fixos no mapa.
