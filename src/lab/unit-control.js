@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { resolveGroundPosition, findSafeExit } from "./movement.mjs";
 import { findPath } from "./navigation.mjs";
 import { seatList,normalizeCrew,boardCrew,leaveCrew,crewSeat,nextAvailableSeat } from "./crew.mjs";
+import { COMBAT,canEngage,selectCombatTarget,applyDamage,calculateScore,assignSquadOrder,validateOrder } from "./combat.mjs";
+import { hasLineOfSight } from "./navigation.mjs";
 
 // WMK Unit Control Lab v0.3.0 — protótipo isolado, sem alterar o jogo principal.
 // Entidade, controle e assento são conceitos separados. O mundo nunca é reiniciado ao trocar.
@@ -98,16 +100,17 @@ const defaults=[
 {id:"soldier-002",kind:"soldier",name:"Soldado de apoio",faction:"allies",health:100,maxHealth:100,position:[-12,0,20],yaw:0,speed:0,ammo:30,reserve:90,reload:0,cooldown:0,order:"follow",target:[0,0,24],seat:null},
 {id:"tank-001",kind:"tank",name:"Tanque Sherman (protótipo)",faction:"allies",health:230,maxHealth:230,position:[25,0,-5],yaw:0,speed:0,ammo:38,reserve:85,reload:0,cooldown:0,order:"hold",target:[25,0,-5],seat:null},
 {id:"heli-001",kind:"heli",name:"Helicóptero de apoio",faction:"allies",health:160,maxHealth:160,position:[-40,13,-8],yaw:0,speed:0,ammo:260,reserve:500,reload:0,cooldown:0,order:"patrol",target:[-40,13,-55],seat:null},
-{id:"enemy-001",kind:"target",name:"Alvo Hostil A",faction:"enemy",health:95,maxHealth:95,position:[-8,0,-95],yaw:0,speed:0,ammo:0,reserve:0,reload:0,cooldown:0,order:"hold",target:[-8,0,-95],seat:null},
-{id:"enemy-002",kind:"target",name:"Alvo Hostil B",faction:"enemy",health:95,maxHealth:95,position:[50,0,-113],yaw:0,speed:0,ammo:0,reserve:0,reload:0,cooldown:0,order:"hold",target:[50,0,-113],seat:null}
+{id:"enemy-001",kind:"target",name:"Alvo Hostil A",faction:"enemy",health:95,maxHealth:95,position:[-8,0,-95],yaw:0,speed:0,ammo:500,reserve:0,reload:0,cooldown:0,order:"hold",target:[-8,0,-95],seat:null},
+{id:"enemy-002",kind:"target",name:"Alvo Hostil B",faction:"enemy",health:95,maxHealth:95,position:[50,0,-113],yaw:0,speed:0,ammo:500,reserve:0,reload:0,cooldown:0,order:"hold",target:[50,0,-113],seat:null}
 ];
 const defs={soldier:{maxSpeed:8,run:1.7,acceleration:12,turn:8,damage:13,rate:.13,magazine:30,reloadTime:1.6,range:180},
 tank:{maxSpeed:19,run:1.2,acceleration:3.5,turn:1.1,damage:68,rate:1.3,magazine:38,reloadTime:2.8,range:280},
 heli:{maxSpeed:35,run:1.3,acceleration:2.7,turn:1.1,damage:18,rate:.17,magazine:260,reloadTime:2.6,range:310},
-target:{maxSpeed:0,run:0,acceleration:0,turn:0,damage:0,rate:0,magazine:0,reloadTime:0,range:0}};
+target:{maxSpeed:0,run:0,acceleration:0,turn:0,damage:6,rate:2.6,magazine:500,reloadTime:0,range:140}};
 const entities=new Map();
 let activeId="soldier-001",lastSoldierId="soldier-001",currentSeat="foot",cameraYaw=0,cameraPitch=.22;
 let mouseDown=false, paused=false, mapOpen=false,selectedMapId="tank-001",mapTarget=[0,0,0], missionKills=0;
+let missionScore=0,squadSelection=new Set(["soldier-002","tank-001"]),combatLog=[];
 let last=performance.now(),elapsed=0,toastTime=0,shotEffects=[];
 const keys=new Set(),saveKey="wmk-unit-control-lab-v030",panelKey="wmk-unit-control-layout-v030";
 const vec=(p)=>new THREE.Vector3(...p),forward=y=>new THREE.Vector3(-Math.sin(y),0,-Math.cos(y));
@@ -120,7 +123,9 @@ function validateUnit(u){
     health:Math.max(0,safeNumber(u.health,100,10000)),maxHealth:Math.max(1,safeNumber(u.maxHealth,100,10000)),
     speed:safeNumber(u.speed),yaw:safeNumber(u.yaw,0,10000),ammo:Math.max(0,Math.floor(safeNumber(u.ammo,0,10000))),
     reserve:Math.max(0,Math.floor(safeNumber(u.reserve,0,10000))),cooldown:Math.max(0,safeNumber(u.cooldown,0,1000)),reload:Math.max(0,safeNumber(u.reload,0,1000)),
-    order:["hold","patrol","follow"].includes(u.order)?u.order:"hold",seat:null,
+    order:validateOrder(u.order),seat:null,
+    kills:Math.max(0,Math.floor(safeNumber(u.kills,0,10000))),score:Math.max(0,Math.floor(safeNumber(u.score,0,1000000))),
+    holdFire:Boolean(u.holdFire),designatedTargetId:typeof u.designatedTargetId==="string"?u.designatedTargetId:null,
     crew:normalizeCrew(u.kind,u.crew),aboard:typeof u.aboard==="string"?u.aboard:null,aboardSeat:typeof u.aboardSeat==="string"?u.aboardSeat:null};
 }
 function createEntity(raw){
@@ -135,7 +140,7 @@ function notice(txt){$("notice").textContent=txt;toastTime=4}
 function isVehicle(e){return e?.kind==="tank"||e?.kind==="heli"}
 function person(){return entities.get(lastSoldierId)||entities.get("soldier-001")}
 function unitState(e){const {group,aiTime,jumpTime,navPath,navDestination,navStatus,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
-function snapshot(){return {schemaVersion:1,labVersion:"0.3.2",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,units:[...entities.values()].map(unitState)}}
+function snapshot(){return {schemaVersion:1,labVersion:"0.3.3",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],units:[...entities.values()].map(unitState)}}
 function loadSnapshot(data){
   if(!data||data.schemaVersion!==1||!Array.isArray(data.units)||data.units.length<3||data.units.length>20)throw Error("Arquivo não é um save WMK válido");
   const seen=new Set(),updated=data.units.map(x=>validateUnit(x));
@@ -159,11 +164,15 @@ function loadSnapshot(data){
     vehicle.crew=result.crew;soldier.aboardSeat=result.seat;soldier.group.visible=false;
   }
   cameraYaw=safeNumber(data.cameraYaw,0,10000);cameraPitch=THREE.MathUtils.clamp(safeNumber(data.cameraPitch,.2),-.6,1.1);
-  missionKills=Math.max(0,Math.floor(safeNumber(data.missionKills,0,10000)));renderControls();renderCrewPanel();
+  missionKills=Math.max(0,Math.floor(safeNumber(data.missionKills,0,10000)));
+  missionScore=Math.max(0,Math.floor(safeNumber(data.missionScore,0,10000000)));
+  squadSelection=new Set((Array.isArray(data.squadSelection)?data.squadSelection:[]).filter(id=>entities.get(id)?.faction==="allies"));
+  for(const enemy of entities.values())if(enemy.faction==="enemy"&&enemy.kind==="target"&&enemy.health>0&&enemy.ammo===0)enemy.ammo=500;
+  renderControls();renderCrewPanel();renderSquadPanel();
 }
 function saveLocal(){try{localStorage.setItem(saveKey,JSON.stringify(snapshot()));notice("Batalha salva neste navegador")}catch(e){notice("Não foi possível salvar: "+e.message)}}
 function download(text,name){const href=URL.createObjectURL(new Blob([text],{type:"application/json"}));const a=document.createElement("a");a.href=href;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(href),2000)}
-$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v032.json");
+$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v033.json");
 $("import").onclick=()=>$("file").click();$("file").onchange=async ev=>{const file=ev.target.files?.[0];if(!file)return;try{if(file.size>250000)throw Error("Máximo 250 KB");loadSnapshot(JSON.parse(await file.text()));notice("Batalha importada")}catch(e){notice("Falha na importação: "+e.message)}finally{ev.target.value=""}};
 $("reset").onclick=()=>{if(!confirm("Reiniciar o laboratório e perder as alterações não exportadas?"))return;try{localStorage.removeItem(saveKey)}catch{}location.reload()};
 try{const saved=localStorage.getItem(saveKey);if(saved)loadSnapshot(JSON.parse(saved))}catch(e){console.warn("Save ignorado",e);notice("Save antigo inválido; usando cenário padrão")}
@@ -179,6 +188,7 @@ function renderControls(){
     const o=document.createElement("option");o.value=e.id;o.textContent=e.name;select.append(o);
   }
   select.value=selectedMapId&&entities.get(selectedMapId)?.faction==="allies"?selectedMapId:"tank-001";
+  renderSquadPanel();
 }
 function assume(id,fromBoard=false){
   const e=entities.get(id);if(!e||e.faction!=="allies"||e.health<=0)return notice("Unidade indisponível");
@@ -265,9 +275,56 @@ function renderCrewPanel(){
     root.appendChild(b);
   }
 }
+function addCombatLog(message) {
+  combatLog.unshift({at:Math.round(elapsed),message});
+  if(combatLog.length>12)combatLog.length=12;
+  const box=document.getElementById("combat-log");
+  if(box)box.textContent=combatLog.slice(0,5).map(item=>item.at+"s · "+item.message).join("\n");
+}
+function renderSquadPanel(){
+  const root=document.getElementById("squad-members");
+  const targets=document.getElementById("squad-target");
+  if(!root||!targets)return;
+  const selectedTarget=targets.value;
+  root.replaceChildren();
+  for(const e of entities.values())if(e.faction==="allies"){
+    const label=document.createElement("label"),input=document.createElement("input");
+    input.type="checkbox";input.checked=squadSelection.has(e.id);
+    input.onchange=()=>{if(input.checked)squadSelection.add(e.id);else squadSelection.delete(e.id)};
+    label.append(input,document.createTextNode(" "+e.name));
+    root.append(label);
+  }
+  targets.replaceChildren();
+  for(const enemy of entities.values())if(enemy.faction==="enemy"&&enemy.health>0){
+    const option=document.createElement("option");option.value=enemy.id;option.textContent=enemy.name;targets.append(option);
+  }
+  if([...targets.options].some(o=>o.value===selectedTarget))targets.value=selectedTarget;
+}
+function giveSquadOrder(order){
+  const ids=[...squadSelection].filter(id=>entities.get(id)?.faction==="allies");
+  if(!ids.length)return notice("Marque ao menos uma unidade aliada.");
+  const targetId=document.getElementById("squad-target")?.value;
+  const target=entities.get(targetId);
+  const goal=order==="attack"&&target?target.group.position.toArray():mapTarget;
+  if(order==="attack"&&!target)return notice("Nenhum alvo hostil disponível.");
+  const snapshots=assignSquadOrder([...entities.values()].map(unitState),ids,order,goal);
+  for(const change of snapshots){
+    if(!ids.includes(change.id))continue;
+    const unit=entities.get(change.id);
+    unit.order=change.order;unit.target=[...change.target];
+    unit.designatedTargetId=order==="attack"?targetId:null;
+    unit.holdFire=order==="hold";
+    unit.navPath=[];unit.aiTime=0;
+  }
+  addCombatLog("Esquadrão: "+ids.length+" unidades · "+order);
+  notice("Ordem de esquadrão "+order.toUpperCase()+" para "+ids.length+" unidades.");
+  renderControls();
+}
+for(const button of document.querySelectorAll("[data-squad-order]"))button.onclick=()=>giveSquadOrder(button.dataset.squadOrder);
 function setOrder(id,order,destination){
   const e=entities.get(id);if(!e||e.faction!=="allies")return;
-  e.order=order;
+  e.order=order;e.holdFire=order==="hold";e.designatedTargetId=null;
+  e.navPath=[];e.aiTime=0;
   if(Array.isArray(destination))e.target=destination;
   notice("Ordem "+order.toUpperCase()+" para "+e.name);renderControls();
 }
@@ -303,6 +360,10 @@ function renderMap(){
       for(const waypoint of e.navPath){const [px,py]=worldToMap(waypoint.x,waypoint.z);ctx.lineTo(px,py)}
       ctx.stroke();
     }
+  }
+  for(const enemy of entities.values())if(enemy.faction==="enemy"&&enemy.health>0&&enemy.id===document.getElementById("squad-target")?.value){
+    const [x,z]=worldToMap(enemy.group.position.x,enemy.group.position.z);
+    ctx.strokeStyle="#ffcd82";ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,z,17,0,Math.PI*2);ctx.stroke();
   }
   const [tx,ty]=worldToMap(mapTarget[0],mapTarget[2]);
   ctx.strokeStyle="#ffcb77";ctx.beginPath();ctx.moveTo(tx-9,ty);ctx.lineTo(tx+9,ty);ctx.moveTo(tx,ty-9);ctx.lineTo(tx,ty+9);ctx.stroke();
