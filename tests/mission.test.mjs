@@ -88,3 +88,23 @@ test("legado sem units segue válido para migração",()=>{
  const mission=presetMission("escort");
  assert.equal(validateMission(mission).units,undefined);
 });
+
+test("missão personalizada preserva objetos de cenário e rotação",async()=>{
+ const {createProp}=await import("../src/lab/scenery.mjs");
+ const {defaultRoster}=await import("../src/lab/scenario.mjs");
+ const mission=presetMission("escort");
+ mission.units=defaultRoster();
+ const prop=createProp("tower","torre-controle",[65,0,-30]);prop.yaw=Math.PI/4;
+ mission.props=[prop];
+ const parsed=validateMission(mission);
+ assert.equal(parsed.props.length,1);
+ assert.equal(parsed.props[0].id,"torre-controle");
+ assert.ok(Math.abs(parsed.props[0].yaw-Math.PI/4)<1e-12);
+});
+test("não permite objetos de cenário repetidos no JSON da missão",async()=>{
+ const {createProp}=await import("../src/lab/scenery.mjs");
+ const mission=presetMission("escort");
+ const p=createProp("wall","muro-1",[30,0,40]);
+ mission.props=[p,{...p}];
+ assert.throws(()=>validateMission(mission),/duplicado/);
+});
