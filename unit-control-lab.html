@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WMK Unit Control Lab v0.3.4 — Combined Arms</title>
+<title>WMK Unit Control Lab v0.3.5 — Combined Arms</title>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"}}</script>
 <style>
 :root{color-scheme:dark;--b:#081821;--p:#0c2631eb;--line:#365864;--mint:#72e2c1;--txt:#e9f7f3;--muted:#abc2c1}
@@ -9,23 +9,30 @@
 header{position:fixed;top:8px;left:8px;right:8px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;z-index:15;pointer-events:none}header>*{pointer-events:auto}header .brand{background:#061822ed;border:1px solid #348376;color:var(--mint);font-weight:800;letter-spacing:.1em;border-radius:6px;padding:9px}header a{color:var(--mint);text-decoration:none;background:#071a22d9;padding:8px;border-radius:5px}
 .panel{position:fixed;z-index:8;min-width:190px;min-height:90px;max-width:95vw;max-height:80vh;overflow:auto;resize:both;background:var(--p);border:1px solid var(--line);border-radius:9px;box-shadow:0 10px 30px #0008}
 .panel h2{font-size:12px;color:var(--mint);padding:10px;margin:0;background:#0d303d;cursor:move;user-select:none;letter-spacing:.06em}
-.panel .body{padding:11px}.panel .body>*+*{margin-top:9px}.panel label{display:block;color:var(--muted)}.panel input,.panel select{max-width:100%}.panel button{margin:2px}.hint{color:var(--muted);font-size:11px}#units{top:60px;left:12px;width:251px;height:320px}#debug{top:60px;right:12px;width:260px;height:288px}#orders{right:12px;bottom:35px;width:275px;height:340px}#squad-members label{display:block;font-size:11px;padding:2px 0;color:#dbf1e9}#squad-members input{vertical-align:middle;margin-right:6px}#combat-log{white-space:pre-wrap;font-size:10px;color:#c7e5d8;border-top:1px solid #42616a;padding-top:7px;min-height:34px}#help{left:12px;bottom:35px;width:270px;height:265px}#crew{left:278px;top:60px;width:235px;height:185px}#crew-content button{display:block;width:100%;margin:4px 0;text-align:left}#units-list button{width:100%;text-align:left;display:block;margin:4px 0}#units-list button.active{background:#286857;border-color:var(--mint)}#units-list .detail{display:block;font-size:10px;color:var(--muted)}.row{display:flex;gap:5px;flex-wrap:wrap}.row>*{flex:1}#reticle{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:26px;color:#c7ffec;text-shadow:0 0 8px black;pointer-events:none;z-index:4}
+.panel .body{padding:11px}.panel .body>*+*{margin-top:9px}.panel label{display:block;color:var(--muted)}.panel input,.panel select{max-width:100%}.panel button{margin:2px}.hint{color:var(--muted);font-size:11px}#units{top:60px;left:12px;width:251px;height:320px}#debug{top:60px;right:12px;width:260px;height:288px}#orders{right:12px;bottom:35px;width:275px;height:340px}#squad-members label{display:block;font-size:11px;padding:2px 0;color:#dbf1e9}#squad-members input{vertical-align:middle;margin-right:6px}#combat-log{white-space:pre-wrap;font-size:10px;color:#c7e5d8;border-top:1px solid #42616a;padding-top:7px;min-height:34px}#help{left:12px;bottom:35px;width:270px;height:265px}#crew{left:278px;top:60px;width:235px;height:185px}#crew-content button{display:block;width:100%;margin:4px 0;text-align:left}#mission{top:267px;left:278px;width:235px;height:245px}#mission-objectives{font-size:11px;line-height:1.65}#mission-status{color:#9af0cd;font-weight:700}#mission .mission-objective{border-bottom:1px solid #2e505b;padding:5px 0}#units-list button{width:100%;text-align:left;display:block;margin:4px 0}#units-list button.active{background:#286857;border-color:var(--mint)}#units-list .detail{display:block;font-size:10px;color:var(--muted)}.row{display:flex;gap:5px;flex-wrap:wrap}.row>*{flex:1}#reticle{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font-size:26px;color:#c7ffec;text-shadow:0 0 8px black;pointer-events:none;z-index:4}
 #hud{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#0a2430e9;border:1px solid #3c8d7b;padding:10px 18px;border-radius:7px;text-align:center;max-width:90vw;z-index:5}
 #notice{position:fixed;top:52px;left:50%;transform:translateX(-50%);background:#0a2932e8;border:1px solid #569a8b;padding:9px 15px;border-radius:7px;z-index:16;color:#bdf9e6;max-width:85vw}
 #map{position:fixed;inset:7% 13%;z-index:25;background:#071c27f7;border:2px solid #72e2c1;border-radius:14px;display:none;padding:16px;box-shadow:0 30px 90px #000b}
 #map.show{display:flex;flex-direction:column}#map h2{color:var(--mint);margin:0 0 8px}#map canvas{width:100%;height:auto;min-height:0;flex:1;object-fit:contain;background:#142f37;cursor:crosshair}#map p{color:var(--muted);margin:8px 0 0}
 #footer{position:fixed;bottom:0;left:0;padding:2px 8px;color:#bdd8d2;background:#041217d9;z-index:6;font-size:10px}
-@media(max-width:900px){#help{display:none}#orders{display:none}#crew{left:220px;width:210px}#units{width:205px;height:250px}#debug{width:210px;height:230px}}
-@media(max-width:560px){#crew{left:8px;top:265px;width:180px;height:135px}#debug{display:none}#units{width:180px;height:190px}header{font-size:10px}#hud{font-size:10px;padding:6px}#map{inset:6% 3%}}
+@media(max-width:900px){#help{display:none}#orders{display:none}#crew{left:220px;width:210px}#mission{left:220px;top:250px;width:210px}#units{width:205px;height:250px}#debug{width:210px;height:230px}}
+@media(max-width:560px){#crew{left:8px;top:265px;width:180px;height:135px}#mission{left:8px;top:405px;width:180px;height:135px}#debug{display:none}#units{width:180px;height:190px}header{font-size:10px}#hud{font-size:10px;padding:6px}#map{inset:6% 3%}}
 </style></head><body>
 <div id="scene"></div><header>
 <span class="brand">WMK UNIT CONTROL LAB · v0.3.1 EXPERIMENTAL</span>
 <button id="save">Salvar</button><button id="export">Exportar JSON</button><button id="import">Importar JSON</button>
 <button id="reset">Reiniciar laboratório</button><button id="layouts">Repor painéis</button>
-<a href="index.html">Jogo principal</a><a href="roadmap.html">Roadmap</a>
+<a href="index.html">Jogo principal</a><a href="mission-editor.html">Editor de missões</a><a href="roadmap.html">Roadmap</a>
 </header>
 <section class="panel" id="units"><h2>☷ UNIDADES · CLIQUE PARA ASSUMIR</h2><div class="body"><div id="units-list"></div><div class="hint">Selecione uma unidade aliada ou chegue perto para entrar com E.</div></div></section>
 <section class="panel" id="crew"><h2>☷ TRIPULAÇÃO E POSTOS</h2><div class="body"><div class="hint">Escolha o posto ou use F para alternar. Ocupantes individuais são preservados.</div><div id="crew-content"></div></div></section>
+<section class="panel" id="mission"><h2>◉ OBJETIVOS DA MISSÃO</h2><div class="body">
+<label>Modelo <select id="mission-preset"><option value="patrol">Patrulha</option><option value="base">Defesa de base</option><option value="escort">Escolta de blindado</option></select></label>
+<div id="mission-status">Carregando missão...</div><div id="mission-objectives"></div>
+<button id="mission-restart">Reiniciar objetivos</button>
+<a href="mission-editor.html">Criar missão personalizada</a>
+<div class="hint">O progresso dos objetivos é independente da troca de personagem e é salvo com a batalha.</div>
+</div></section>
 <section class="panel" id="debug"><h2>⌘ DEBUG EM TEMPO REAL</h2><div class="body"><div id="debug-text"></div><label>Qualidade <select id="quality"><option value="baixo">Baixa</option><option value="medio" selected>Média</option><option value="alto">Alta</option></select></label><div class="hint">Dados de unidades são independentes do controlador.</div></div></section>
 <section class="panel" id="orders"><h2>⚑ ORDENS PARA BOTS</h2><div class="body"><label>Unidade de destino <select id="order-target"></select></label><div class="row"><button data-order="hold">Manter</button><button data-order="patrol">Patrulhar</button><button data-order="follow">Seguir</button></div><div class="hint">Uma unidade sem jogador executa sua ordem. Ataques automáticos respeitam alcance, munição e obstáculos.</div><button id="goto">Ir ao ponto do mapa</button>
 <hr><b>ESQUADRÃO · SELEÇÃO MÚLTIPLA</b>
