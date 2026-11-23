@@ -14,19 +14,19 @@ jobs:
           node-version: '22'
       - name: Verificar projeto
         run: python3 scripts/check_project.py
-      - name: Testar colisões, navegação A* e tripulação
+      - name: Testar colisões, IA, tripulação e missões
         run: node --test tests/*.test.mjs
       - name: Empacotar ZIP completo de testes WMK
         if: github.event_name == 'push'
         run: |
           mkdir -p dist
-          zip -q -r dist/WMK-Combined-Arms-v0.3.4.zip . -x '.git/*' 'dist/*' '.github/*'
-          unzip -tq dist/WMK-Combined-Arms-v0.3.4.zip
+          zip -q -r dist/WMK-Combined-Arms-v0.3.5.zip . -x '.git/*' 'dist/*' '.github/*'
+          unzip -tq dist/WMK-Combined-Arms-v0.3.5.zip
       - name: Publicar ZIP nos artefatos da execução
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: WMK-Combined-Arms-v0.3.4-ZIP
-          path: dist/WMK-Combined-Arms-v0.3.4.zip
+          name: WMK-Combined-Arms-v0.3.5-ZIP
+          path: dist/WMK-Combined-Arms-v0.3.5.zip
           retention-days: 30
           if-no-files-found: error
