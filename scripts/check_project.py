@@ -80,6 +80,15 @@ for symbol in ("updateBotCombat(", "dealDamage(", "giveSquadOrder(", "addCombatL
     assert symbol in lab_js, f"Combate não integrado: {symbol}"
 assert 'from "./combat.mjs"' in lab_js
 assert (root / "src" / "lab" / "mission.mjs").is_file()
+assert (root / "src" / "lab" / "scenario.mjs").is_file()
+assert (root / "tests" / "scenario.test.mjs").is_file()
+for key in ('id="add-unit"','id="clone-unit"','id="unit-list"','id="unit-properties"','id="mode-units"'):
+    assert key in mission_html, f"Editor de unidades ausente: {key}"
+assert 'from "./src/lab/scenario.mjs"' in mission_html
+assert 'from "./scenario.mjs"' in lab_js
+for symbol in ("applyScenario(", "validateRoster(", "createEntity("):
+    assert symbol in lab_js, f"Instanciamento de missao nao integrado: {symbol}"
+
 assert (root / "tests" / "mission.test.mjs").is_file()
 mission_html=(root / "mission-editor.html").read_text(encoding="utf-8")
 assert '<!DOCTYPE html>' in mission_html and '</html>' in mission_html
