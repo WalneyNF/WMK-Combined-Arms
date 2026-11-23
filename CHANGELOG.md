@@ -1,5 +1,14 @@
 # Histórico de alterações
 
+## [0.3.4-lab] — 2026-11-23 (laboratório experimental)
+
+- Duas patrulhas inimigas móveis com A* e perseguição de aliados.
+- Bots armados agora recarregam munição reserva e mantêm controle independente.
+- Inimigos de infantaria recebem marcador vermelho no cenário.
+- Formações de esquadrão cunha/linha/coluna, configuráveis e persistidas em JSON.
+- HUD exibe total dinâmico de inimigos na missão.
+- GitHub Actions executa testes e empacota o projeto completo em ZIP verificável.
+
 ## [0.3.3-lab] — 2026-11-23 (laboratório experimental)
 
 - IA aliada e torres hostis com disparos, alcance, cooldown, munição e verificação simplificada de linha de visão.
