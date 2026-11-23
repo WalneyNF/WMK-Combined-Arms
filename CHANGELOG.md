@@ -1,5 +1,15 @@
 # Histórico de alterações
 
+## [0.3.3-lab] — 2026-11-23 (laboratório experimental)
+
+- IA aliada e torres hostis com disparos, alcance, cooldown, munição e verificação simplificada de linha de visão.
+- Detecção de alvos, priorização de inimigo marcado, ataques de bots e reação de defesa.
+- Interface de seleção múltipla de aliados, comandos Atacar, Defender, Seguir e Cessar fogo.
+- Projéteis atingem entidades de facções opostas; vida, eliminação, pontuação e histórico de eventos.
+- Salvar/importar/exportar JSON com `missionScore`, `squadSelection` e estatísticas individuais.
+- Módulo testável `src/lab/combat.mjs` e testes de regressão `tests/combat.test.mjs`.
+- Limitações: IA arcade, inimigos estáticos, ausência de movimentação tática elaborada e de teste visual completo no navegador.
+
 ## [0.3.2-lab] — 2026-11-23 (experimental, laboratório separado)
 
 - Navegação A* em grade com desvio de construções e tanques estacionados.
