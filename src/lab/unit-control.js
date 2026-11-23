@@ -419,7 +419,7 @@ function botUpdate(e,dt){
   }
   const destination={x:targetX,z:targetZ};
   e.aiTime=(e.aiTime||0)-dt;
-  if(e.aiTime<=0||!e.navDestination||Math.hypot(e.navDestination.x-targetX,e.navDestination.z-targetZ)>6||!e.navPath?.length){
+  if(e.aiTime<=0||!e.navDestination||Math.hypot(e.navDestination.x-targetX,e.navDestination.z-targetZ)>6){
     e.aiTime=1.7;
     // O tanque estacionado alvo é excluído se estiver sendo seguido por uma unidade terrestre,
     // mas o objetivo é deslocado 12 unidades para fora da carroceria.
