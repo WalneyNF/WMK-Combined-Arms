@@ -2625,8 +2625,48 @@
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      applyWmkQuality(currentQuality);
     });
+
+
+    // WMK: Qualidade gráfica configurável e persistida (tecla O).
+    const WMK_QUALITY_KEY = "wmk-combined-arms-quality";
+    const wmkQuality = (() => { try { return localStorage.getItem(WMK_QUALITY_KEY) || "medio"; } catch { return "medio"; } })();
+    const qualityProfiles = {
+      baixo: { pixelRatio: 0.75, shadows: false },
+      medio: { pixelRatio: 1, shadows: true },
+      alto: { pixelRatio: 2, shadows: true }
+    };
+    let currentQuality = qualityProfiles[wmkQuality] ? wmkQuality : "medio";
+    function applyWmkQuality(mode) {
+      if (!qualityProfiles[mode]) return;
+      currentQuality = mode;
+      const config = qualityProfiles[mode];
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, config.pixelRatio));
+      renderer.shadowMap.enabled = config.shadows;
+      renderer.shadowMap.needsUpdate = true;
+      try { localStorage.setItem(WMK_QUALITY_KEY, mode); } catch {}
+      const select = document.getElementById("wmk-quality-select");
+      if (select) select.value = mode;
+    }
+    applyWmkQuality(currentQuality);
+    const wmkOptions = document.createElement("section");
+    wmkOptions.id = "wmk-graphics-options";
+    wmkOptions.setAttribute("aria-label", "Opções gráficas WMK");
+    wmkOptions.style.cssText = "display:none;position:fixed;right:18px;top:72px;z-index:50;background:#071b25f2;color:#eff9f5;border:1px solid #72e2c1;padding:16px;border-radius:10px;box-shadow:0 15px 45px #0009;max-width:260px;font:13px system-ui";
+    wmkOptions.innerHTML = '<div style="font-weight:800;color:#72e2c1;margin-bottom:12px">WMK · OPÇÕES GRÁFICAS</div><label for="wmk-quality-select">Qualidade de renderização</label><select id="wmk-quality-select" style="display:block;width:100%;margin:10px 0;background:#15313a;color:white;padding:8px"><option value="baixo">Baixa (PC modesto)</option><option value="medio">Média</option><option value="alto">Alta</option></select><p style="font-size:11px;color:#acbfc1">Preferência salva neste navegador. Pressione O para abrir/fechar.</p><button id="wmk-close-options" style="padding:8px 12px;background:#72e2c1;border:0;cursor:pointer">Fechar</button>';
+    document.body.appendChild(wmkOptions);
+    wmkOptions.querySelector("select").addEventListener("change", (e) => applyWmkQuality(e.target.value));
+    wmkOptions.querySelector("button").addEventListener("click", () => { wmkOptions.style.display = "none"; });
+    applyWmkQuality(currentQuality);
+    const wmkToggle = document.createElement("button");
+    wmkToggle.id = "wmk-settings-toggle";
+    wmkToggle.textContent = "⚙ Gráficos (O)";
+    wmkToggle.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:41;background:#09212bd9;color:#72e2c1;border:1px solid #468776;border-radius:5px;padding:6px 12px;font:12px system-ui;cursor:pointer";
+    document.body.appendChild(wmkToggle);
+    function toggleWmkOptions() { wmkOptions.style.display = wmkOptions.style.display === "none" ? "block" : "none"; }
+    wmkToggle.addEventListener("click", toggleWmkOptions);
+    window.addEventListener("keydown", e => { if (e.code === "KeyO" && !e.repeat && !["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName)) toggleWmkOptions(); });
 
     // ---------------------------------------------------------------------
     // Loop principal
