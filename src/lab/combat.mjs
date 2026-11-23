@@ -4,7 +4,7 @@ export const COMBAT = Object.freeze({
  soldier: Object.freeze({range:120,damage:9,interval:.8,velocity:150,alertRadius:145}),
  tank: Object.freeze({range:235,damage:42,interval:3.2,velocity:120,alertRadius:250}),
  heli: Object.freeze({range:200,damage:13,interval:1.1,velocity:165,alertRadius:235}),
- target: Object.freeze({range:0,damage:0,interval:Infinity,velocity:0,alertRadius:0})
+ target: Object.freeze({range:140,damage:6,interval:2.6,velocity:110,alertRadius:155})
 });
 export const SQUAD_ORDERS=Object.freeze(["hold","patrol","follow","attack","defend"]);
 export function validateOrder(order) {
