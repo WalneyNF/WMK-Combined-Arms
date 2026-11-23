@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "cannon-20mm",
+  "name": "Canhão 20 mm",
+  "damage": 14,
+  "cooldownSeconds": 0.15,
+  "projectileSpeed": 170,
+  "range": 1000
+}
