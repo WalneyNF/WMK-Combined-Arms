@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { resolveGroundPosition, findSafeExit } from "./movement.mjs";
+import { findPath } from "./navigation.mjs";
+import { seatList,normalizeCrew,boardCrew,leaveCrew,crewSeat,nextAvailableSeat } from "./crew.mjs";
 
 // WMK Unit Control Lab v0.3.0 — protótipo isolado, sem alterar o jogo principal.
 // Entidade, controle e assento são conceitos separados. O mundo nunca é reiniciado ao trocar.
@@ -118,7 +120,8 @@ function validateUnit(u){
     health:Math.max(0,safeNumber(u.health,100,10000)),maxHealth:Math.max(1,safeNumber(u.maxHealth,100,10000)),
     speed:safeNumber(u.speed),yaw:safeNumber(u.yaw,0,10000),ammo:Math.max(0,Math.floor(safeNumber(u.ammo,0,10000))),
     reserve:Math.max(0,Math.floor(safeNumber(u.reserve,0,10000))),cooldown:Math.max(0,safeNumber(u.cooldown,0,1000)),reload:Math.max(0,safeNumber(u.reload,0,1000)),
-    order:["hold","patrol","follow"].includes(u.order)?u.order:"hold",seat:null};
+    order:["hold","patrol","follow"].includes(u.order)?u.order:"hold",seat:null,
+    crew:normalizeCrew(u.kind,u.crew),aboard:typeof u.aboard==="string"?u.aboard:null,aboardSeat:typeof u.aboardSeat==="string"?u.aboardSeat:null};
 }
 function createEntity(raw){
   const d=validateUnit(raw);
@@ -131,8 +134,8 @@ function active(){return entities.get(activeId)}
 function notice(txt){$("notice").textContent=txt;toastTime=4}
 function isVehicle(e){return e?.kind==="tank"||e?.kind==="heli"}
 function person(){return entities.get(lastSoldierId)||entities.get("soldier-001")}
-function unitState(e){const {group,aiTime,jumpTime,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
-function snapshot(){return {schemaVersion:1,labVersion:"0.3.1",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,units:[...entities.values()].map(unitState)}}
+function unitState(e){const {group,aiTime,jumpTime,navPath,navDestination,navStatus,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
+function snapshot(){return {schemaVersion:1,labVersion:"0.3.2",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,units:[...entities.values()].map(unitState)}}
 function loadSnapshot(data){
   if(!data||data.schemaVersion!==1||!Array.isArray(data.units)||data.units.length<3||data.units.length>20)throw Error("Arquivo não é um save WMK válido");
   const seen=new Set(),updated=data.units.map(x=>validateUnit(x));
@@ -146,13 +149,21 @@ function loadSnapshot(data){
   lastSoldierId=entities.get(data.lastSoldierId)?.kind==="soldier"?data.lastSoldierId:"soldier-001";
   if(entities.get(activeId).kind==="soldier")lastSoldierId=activeId;
   currentSeat=entities.get(activeId).kind==="soldier"?"foot":["driver","gunner","commander","pilot","door-gunner"].includes(data.currentSeat)?data.currentSeat:entities.get(activeId).kind==="tank"?"driver":"pilot";
-  for(const soldier of entities.values())if(soldier.kind==="soldier"&&soldier.aboard&&entities.has(soldier.aboard))soldier.group.visible=false;
+  // Migração e consistência: os dados de bordo dos soldados são a fonte de verdade.
+  for(const vehicle of entities.values())if(isVehicle(vehicle))vehicle.crew=normalizeCrew(vehicle.kind,null);
+  for(const soldier of entities.values())if(soldier.kind==="soldier"){
+    const vehicle=entities.get(soldier.aboard);
+    if(!isVehicle(vehicle)){soldier.aboard=null;soldier.aboardSeat=null;continue}
+    const result=boardCrew(vehicle.kind,vehicle.crew,soldier.id,soldier.aboardSeat);
+    if(!result.ok){soldier.aboard=null;soldier.aboardSeat=null;continue}
+    vehicle.crew=result.crew;soldier.aboardSeat=result.seat;soldier.group.visible=false;
+  }
   cameraYaw=safeNumber(data.cameraYaw,0,10000);cameraPitch=THREE.MathUtils.clamp(safeNumber(data.cameraPitch,.2),-.6,1.1);
-  missionKills=Math.max(0,Math.floor(safeNumber(data.missionKills,0,10000)));renderControls();
+  missionKills=Math.max(0,Math.floor(safeNumber(data.missionKills,0,10000)));renderControls();renderCrewPanel();
 }
 function saveLocal(){try{localStorage.setItem(saveKey,JSON.stringify(snapshot()));notice("Batalha salva neste navegador")}catch(e){notice("Não foi possível salvar: "+e.message)}}
 function download(text,name){const href=URL.createObjectURL(new Blob([text],{type:"application/json"}));const a=document.createElement("a");a.href=href;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(href),2000)}
-$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v030.json");
+$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v032.json");
 $("import").onclick=()=>$("file").click();$("file").onchange=async ev=>{const file=ev.target.files?.[0];if(!file)return;try{if(file.size>250000)throw Error("Máximo 250 KB");loadSnapshot(JSON.parse(await file.text()));notice("Batalha importada")}catch(e){notice("Falha na importação: "+e.message)}finally{ev.target.value=""}};
 $("reset").onclick=()=>{if(!confirm("Reiniciar o laboratório e perder as alterações não exportadas?"))return;try{localStorage.removeItem(saveKey)}catch{}location.reload()};
 try{const saved=localStorage.getItem(saveKey);if(saved)loadSnapshot(JSON.parse(saved))}catch(e){console.warn("Save ignorado",e);notice("Save antigo inválido; usando cenário padrão")}
@@ -178,10 +189,17 @@ function assume(id,fromBoard=false){
     disembark();return;
   }
   if(e.kind==="soldier")lastSoldierId=e.id;
-  if(fromBoard&&isVehicle(e)){person().aboard=e.id;person().group.visible=false;}
-  activeId=id;currentSeat=e.kind==="soldier"?"foot":e.kind==="tank"?"driver":"pilot";
+  if(fromBoard&&isVehicle(e)){
+    const soldier=person();
+    if(soldier.aboard&&soldier.aboard!==e.id)return notice("Desembarque antes de trocar de veículo.");
+    const boarding=boardCrew(e.kind,e.crew,soldier.id);
+    if(!boarding.ok)return notice("Não foi possível embarcar: "+boarding.reason);
+    e.crew=boarding.crew;
+    soldier.aboard=e.id;soldier.aboardSeat=boarding.seat;soldier.group.visible=false;
+  }
+  activeId=id;currentSeat=e.kind==="soldier"?"foot":(fromBoard?person().aboardSeat:(e.kind==="tank"?"driver":"pilot"));
   cameraYaw=e.group.rotation.y;
-  renderControls();notice("Assumiu "+e.name+" · "+(currentSeat==="foot"?"a pé":currentSeat));
+  renderControls();renderCrewPanel();notice("Assumiu "+e.name+" · "+(currentSeat==="foot"?"a pé":currentSeat));
 }
 function disembark(){
   const soldier=person(),vehicle=soldier.aboard?entities.get(soldier.aboard):null;
@@ -191,9 +209,10 @@ function disembark(){
   const exit=findSafeExit(vehicle.group.position,vehicle.group.rotation.y,blockers);
   if(!exit){notice("Saída bloqueada. Movimente o veículo para outra posição.");return}
   soldier.group.position.set(exit.x,0,exit.z);
-  soldier.aboard=null;soldier.group.visible=true;activeId=soldier.id;currentSeat="foot";
+  vehicle.crew=leaveCrew(vehicle.kind,vehicle.crew,soldier.id).crew;
+  soldier.aboard=null;soldier.aboardSeat=null;soldier.group.visible=true;activeId=soldier.id;currentSeat="foot";
   cameraYaw=soldier.group.rotation.y;keys.clear();mouseDown=false;
-  renderControls();notice("Desembarcou: veículo preservado no mundo.");
+  renderControls();renderCrewPanel();notice("Desembarcou: veículo preservado no mundo.");
 }
 function nearestVehicle(){
   const p=person().group.position;let best=null,distance=Infinity;
@@ -209,8 +228,38 @@ function interact(){
   else notice("Controle remoto: pressione 1 para voltar ao soldado.");
 }
 function switchSeat(){
-  const e=active();if(e.kind==="tank"){const seats=["driver","gunner","commander"];currentSeat=seats[(seats.indexOf(currentSeat)+1)%seats.length];notice("POSTO · "+currentSeat)}
-  else if(e.kind==="heli"){currentSeat=currentSeat==="pilot"?"door-gunner":"pilot";notice("POSTO · "+currentSeat)}
+  const e=active();if(!isVehicle(e))return;
+  const boarded=person().aboard===e.id?person():null;
+  const next=nextAvailableSeat(e.kind,e.crew,currentSeat,boarded?.id);
+  if(!next)return notice("Todos os outros postos estão ocupados.");
+  if(boarded){
+    const result=boardCrew(e.kind,e.crew,boarded.id,next);
+    if(!result.ok)return notice(result.reason);
+    e.crew=result.crew;boarded.aboardSeat=next;
+  }
+  currentSeat=next;
+  renderCrewPanel();notice("POSTO · "+currentSeat.toUpperCase());
+}
+function renderCrewPanel(){
+  const root=document.getElementById("crew-content");if(!root)return;
+  root.replaceChildren();
+  const e=active();
+  if(!isVehicle(e)){root.textContent="Assuma um tanque ou helicóptero para consultar os postos.";return}
+  for(const seat of seatList(e.kind)){
+    const b=document.createElement("button"),occupant=e.crew?.[seat];
+    b.textContent=(seat===currentSeat?"▶ ":"")+seat+" · "+(occupant?entities.get(occupant)?.name||occupant:"livre / IA");
+    b.disabled=!!occupant&&occupant!==person().id&&person().aboard===e.id;
+    b.onclick=()=>{
+      if(seat===currentSeat)return;
+      if(person().aboard===e.id){
+        const result=boardCrew(e.kind,e.crew,person().id,seat);
+        if(!result.ok)return notice(result.reason);
+        e.crew=result.crew;person().aboardSeat=result.seat;
+      }
+      currentSeat=seat;renderCrewPanel();notice("POSTO · "+seat.toUpperCase());
+    };
+    root.appendChild(b);
+  }
 }
 function setOrder(id,order,destination){
   const e=entities.get(id);if(!e||e.faction!=="allies")return;
@@ -423,4 +472,4 @@ function saveLayout(){const layout={};for(const p of document.querySelectorAll("
 try{const layout=JSON.parse(localStorage.getItem(panelKey)||"{}");for(const p of document.querySelectorAll(".panel"))if(layout[p.id]){const d=layout[p.id];p.style.left=Math.max(0,d.x)+"px";p.style.top=Math.max(0,d.y)+"px";p.style.width=d.w+"px";p.style.height=d.h+"px";p.style.right="auto";p.style.bottom="auto"}}catch{}
 $("layouts").onclick=()=>{try{localStorage.removeItem(panelKey)}catch{}location.reload()};
 window.addEventListener("beforeunload",()=>{try{localStorage.setItem(saveKey,JSON.stringify(snapshot()))}catch{}});
-renderControls();requestAnimationFrame(animate);
+renderControls();renderCrewPanel();requestAnimationFrame(animate);
