@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WMK Unit Control Lab v0.3.0 — Combined Arms</title>
+<title>WMK Unit Control Lab v0.3.1 — Combined Arms</title>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"}}</script>
 <style>
 :root{color-scheme:dark;--b:#081821;--p:#0c2631eb;--line:#365864;--mint:#72e2c1;--txt:#e9f7f3;--muted:#abc2c1}
@@ -19,7 +19,7 @@ header{position:fixed;top:8px;left:8px;right:8px;display:flex;gap:7px;align-item
 @media(max-width:560px){#debug{display:none}#units{width:180px;height:190px}header{font-size:10px}#hud{font-size:10px;padding:6px}#map{inset:6% 3%}}
 </style></head><body>
 <div id="scene"></div><header>
-<span class="brand">WMK UNIT CONTROL LAB · v0.3.0 EXPERIMENTAL</span>
+<span class="brand">WMK UNIT CONTROL LAB · v0.3.1 EXPERIMENTAL</span>
 <button id="save">Salvar</button><button id="export">Exportar JSON</button><button id="import">Importar JSON</button>
 <button id="reset">Reiniciar laboratório</button><button id="layouts">Repor painéis</button>
 <a href="index.html">Jogo principal</a><a href="roadmap.html">Roadmap</a>
@@ -31,7 +31,7 @@ header{position:fixed;top:8px;left:8px;right:8px;display:flex;gap:7px;align-item
 <b>Soldado</b>: WASD mover, Shift correr, mouse mirar, clique atirar, Espaço pular, C agachar, E entrar, R recarregar.<br>
 <b>Veículos</b>: WASD mover/guinar, mouse aponta a arma, clique atira, E sair, F trocar posto.<br>
 <b>Helicóptero</b>: Q sobe, C desce.<br>
-<b>Geral</b>: K travar/soltar mouse; M mapa tático; Esc liberar mouse/fechar mapa; 1/2/3 trocar de unidade.<br><span class="hint">Modelos são protótipos. Não é simulação realista de física.</span>
+<b>Geral</b>: K travar/soltar mouse; M mapa tático; Esc liberar mouse/fechar mapa; 1/2/3/4 trocar de unidade.<br><span class="hint">Modelos são protótipos. Não é simulação realista de física.</span>
 </div></section>
 <div id="reticle">+</div><div id="hud" aria-live="polite">Inicializando laboratório...</div>
 <div id="notice" role="status">Clique no cenário e use WASD. Pressione K para capturar o mouse.</div>
