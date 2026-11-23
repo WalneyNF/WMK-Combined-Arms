@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { resolveGroundPosition, findSafeExit } from "./movement.mjs";
+import { resolveGroundPosition, findSafeExit, BUILDINGS } from "./movement.mjs";
 import { findPath } from "./navigation.mjs";
 import { seatList,normalizeCrew,boardCrew,leaveCrew,crewSeat,nextAvailableSeat } from "./crew.mjs";
 import { COMBAT,canEngage,selectCombatTarget,applyDamage,calculateScore,assignSquadOrder,validateOrder } from "./combat.mjs";
@@ -7,6 +7,7 @@ import { hasLineOfSight } from "./navigation.mjs";
 import { FORMATIONS,formationDestination } from "./formation.mjs";
 import { validateMission,startMission,advanceMission,missionProgress,presetMission } from "./mission.mjs";
 import { validateRoster,defaultRoster } from "./scenario.mjs";
+import { validateProps,propBlockers } from "./scenery.mjs";
 
 // WMK Unit Control Lab v0.3.0 — protótipo isolado, sem alterar o jogo principal.
 // Entidade, controle e assento são conceitos separados. O mundo nunca é reiniciado ao trocar.
@@ -23,18 +24,41 @@ const materials={ground:mat(0x608469),runway:mat(0x586b6e),concrete:mat(0x768584
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(550,550),materials.ground);ground.rotation.x=-Math.PI/2;scene.add(ground);
 const grid=new THREE.GridHelper(550,55,0x92b6a0,0x587c6b);grid.position.y=.015;scene.add(grid);
 const floor=(x,z)=>0, bound=n=>THREE.MathUtils.clamp(n,-260,260);
+let activeProps=[];const propGroup=new THREE.Group();scene.add(propGroup);
+const buildingsNow=()=>[...BUILDINGS,...propBlockers(activeProps)];
 // Colisão arcade independente da renderização.
 function groundRadius(e){return e.kind==="tank"?4.4:e.kind==="soldier"?.75:e.kind==="heli"?5.5:2}
 function obstacles(except){return [...entities.values()].filter(e=>e.id!==except&&e.health>0&&e.kind==="tank").map(e=>({x:e.group.position.x,z:e.group.position.z,radius:groundRadius(e)}))}
 function collide(e){
   if(e.kind==="heli"&&e.group.position.y>5)return false;
-  const p=e.group.position,r=resolveGroundPosition(p.x,p.z,groundRadius(e),obstacles(e.id));
+  const p=e.group.position,r=resolveGroundPosition(p.x,p.z,groundRadius(e),obstacles(e.id),buildingsNow());
   p.x=r.x;p.z=r.z;
   if(r.collided&&e.kind==="tank")e.speed=0;
   return r.collided;
 }
 function part(parent,geom,m,x=0,y=0,z=0,rot=[0,0,0]){const p=new THREE.Mesh(geom,m);p.position.set(x,y,z);p.rotation.set(...rot);parent.add(p);return p;}
 const box=(p,w,h,d,m,x,y,z)=>part(p,new THREE.BoxGeometry(w,h,d),m,x,y,z);
+function renderProps(raw){
+  const prepared=validateProps(raw||[]);
+  for(const child of [...propGroup.children]){
+    propGroup.remove(child);
+    child.traverse(o=>{if(o.isMesh)o.geometry.dispose()});
+  }
+  activeProps=prepared;
+  const colors={building:materials.concrete,wall:materials.metal,crate:materials.olive,tower:materials.blue,barrier:materials.dark};
+  for(const p of activeProps){
+    const root=new THREE.Group();
+    root.position.set(p.position[0],p.position[1],p.position[2]);root.rotation.y=p.yaw;
+    const {width,height,depth}=p.size;
+    box(root,width,height,depth,colors[p.kind],0,height/2,0);
+    if(p.kind==="building"){
+      box(root,width+.5,.35,depth+.5,materials.dark,0,height+.18,0);
+    }else if(p.kind==="tower"){
+      box(root,width*1.2,.4,depth*1.2,materials.dark,0,height+.2,0);
+    }
+    propGroup.add(root);
+  }
+}
 function scenery(){
   const road=box(scene,130,.12,20,materials.runway,0,.06,-52);
   const road2=box(scene,20,.12,115,materials.runway,69,.06,-9);
@@ -152,15 +176,17 @@ function notice(txt){$("notice").textContent=txt;toastTime=4}
 function isVehicle(e){return e?.kind==="tank"||e?.kind==="heli"}
 function person(){return entities.get(lastSoldierId)||[...entities.values()].find(u=>u.kind==="soldier"&&u.faction==="allies")}
 function unitState(e){const {group,aiTime,jumpTime,navPath,navDestination,navStatus,...data}=e;return {...data,position:e.group.position.toArray(),yaw:e.group.rotation.y}}
-function snapshot(){return {schemaVersion:1,labVersion:"0.3.6",activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],squadFormation,missionState,units:[...entities.values()].map(unitState)}}
+function snapshot(){return {schemaVersion:1,labVersion:"0.3.7",props:activeProps,activeId,lastSoldierId,currentSeat,cameraYaw,cameraPitch,missionKills,missionScore,squadSelection:[...squadSelection],squadFormation,missionState,units:[...entities.values()].map(unitState)}}
 function loadSnapshot(data){
   if(!data||data.schemaVersion!==1||!Array.isArray(data.units)||data.units.length<1||data.units.length>40)throw Error("Arquivo não é um save WMK válido");
+  const preparedProps=validateProps(data.props||data.missionState?.definition?.props||[]);
   const seen=new Set(),updated=data.units.map(x=>validateUnit(x));
   for(const u of updated){if(seen.has(u.id))throw Error("IDs duplicados");seen.add(u.id)}
   if(!updated.some(u=>u.kind==="soldier"&&u.faction==="allies"))throw Error("Batalha sem soldado aliado");
   const legacy=!data.labVersion||["0.3.0","0.3.1","0.3.2","0.3.3","0.3.4","0.3.5"].includes(data.labVersion);
   const items=[...entities.values()];for(const e of items){scene.remove(e.group);e.group.traverse(obj=>{if(obj.isMesh)obj.geometry.dispose()});}entities.clear();
   for(const u of updated)createEntity(u);
+  renderProps(preparedProps);
   // Compatibilidade com saves da v0.3.0: adiciona a nova unidade se não existir.
   if(legacy){
     if(!entities.has("soldier-002"))createEntity(defaults.find(u=>u.id==="soldier-002"));
@@ -211,7 +237,7 @@ function loadSnapshot(data){
 }
 function saveLocal(){try{localStorage.setItem(saveKey,JSON.stringify(snapshot()));notice("Batalha salva neste navegador")}catch(e){notice("Não foi possível salvar: "+e.message)}}
 function download(text,name){const href=URL.createObjectURL(new Blob([text],{type:"application/json"}));const a=document.createElement("a");a.href=href;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(href),2000)}
-$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v036.json");
+$("save").onclick=saveLocal;$("export").onclick=()=>download(JSON.stringify(snapshot(),null,2),"wmk-batalha-v037.json");
 $("import").onclick=()=>$("file").click();$("file").onchange=async ev=>{const file=ev.target.files?.[0];if(!file)return;try{if(file.size>250000)throw Error("Máximo 250 KB");loadSnapshot(JSON.parse(await file.text()));notice("Batalha importada")}catch(e){notice("Falha na importação: "+e.message)}finally{ev.target.value=""}};
 $("reset").onclick=()=>{if(!confirm("Reiniciar o laboratório e perder as alterações não exportadas?"))return;try{localStorage.removeItem(saveKey)}catch{}location.reload()};
 try{const saved=localStorage.getItem(saveKey);if(saved)loadSnapshot(JSON.parse(saved))}catch(e){console.warn("Save ignorado",e);notice("Save antigo inválido; usando cenário padrão")}
@@ -266,7 +292,7 @@ function disembark(){
   if(Math.abs(vehicle.speed)>2)return notice("Pare o veículo antes de desembarcar.");
   const blockers=obstacles(vehicle.id);
   blockers.push({x:vehicle.group.position.x,z:vehicle.group.position.z,radius:groundRadius(vehicle)});
-  const exit=findSafeExit(vehicle.group.position,vehicle.group.rotation.y,blockers);
+  const exit=findSafeExit(vehicle.group.position,vehicle.group.rotation.y,blockers,buildingsNow());
   if(!exit){notice("Saída bloqueada. Movimente o veículo para outra posição.");return}
   soldier.group.position.set(exit.x,0,exit.z);
   vehicle.crew=leaveCrew(vehicle.kind,vehicle.crew,soldier.id).crew;
@@ -468,6 +494,12 @@ function renderMap(){
       ctx.fillStyle="#fff2bd";ctx.font="11px system-ui";ctx.fillText(o.title,ox+9,oy-9);
     }
   }
+  for(const prop of activeProps){
+    const [px,pz]=worldToMap(prop.position[0],prop.position[2]);
+    ctx.save();ctx.translate(px,pz);ctx.rotate(prop.yaw);
+    ctx.fillStyle="#789da2";ctx.fillRect(-prop.size.width*.675,-prop.size.depth*.675,prop.size.width*1.35,prop.size.depth*1.35);ctx.restore();
+    ctx.font="10px system-ui";ctx.fillStyle="#bde3e3";ctx.fillText(prop.name,px+5,pz-5);
+  }
   const [tx,ty]=worldToMap(mapTarget[0],mapTarget[2]);
   ctx.strokeStyle="#ffcb77";ctx.beginPath();ctx.moveTo(tx-9,ty);ctx.lineTo(tx+9,ty);ctx.moveTo(tx,ty-9);ctx.lineTo(tx,ty+9);ctx.stroke();
 }
@@ -517,6 +549,7 @@ function applyScenario(raw){
   const definition=validateMission(raw);
   if(!definition.units)throw Error("Missão sem definição de unidades");
   const roster=validateRoster(definition.units);
+  const props=validateProps(definition.props||[]);
   // Validação completa primeiro: nunca apagar a batalha se o cenário for inválido.
   if(!roster.some(u=>u.faction==="allies"&&u.kind==="soldier"&&u.health>0))
     throw Error("A missão precisa de um soldado aliado vivo.");
@@ -527,6 +560,7 @@ function applyScenario(raw){
     e.group.traverse(obj=>{if(obj.isMesh)obj.geometry.dispose()});
   }
   entities.clear();
+  renderProps(props);
   for(const unit of roster)createEntity({...unit,speed:0,cooldown:0,reload:0,seat:null});
   lastSoldierId=roster.find(u=>u.kind==="soldier"&&u.faction==="allies"&&u.health>0).id;
   activeId=lastSoldierId;currentSeat="foot";cameraYaw=entities.get(activeId).group.rotation.y;
@@ -543,7 +577,7 @@ function visibleCombat(attacker,target){
   return hasLineOfSight({x:attacker.group.position.x,z:attacker.group.position.z},
     {x:target.group.position.x,z:target.group.position.z},
     {radius:.12,obstacles:obstacles(attacker.id).filter(b=>
-      Math.hypot(b.x-target.group.position.x,b.z-target.group.position.z)>b.radius+.5)});
+      Math.hypot(b.x-target.group.position.x,b.z-target.group.position.z)>b.radius+.5),buildings:buildingsNow()});
 }
 function createShot(shooter,direction,{damage,velocity,life=3,color=materials.yellow}={}){
   const origin=shooter.group.position.clone();
@@ -579,7 +613,7 @@ function onDestroyed(target,owner){
       const occupant=entities.get(occupantId);
       if(!occupant)continue;
       occupant.aboard=null;occupant.aboardSeat=null;
-      const safe=resolveGroundPosition(target.group.position.x+9,target.group.position.z+9,.8,obstacles(target.id));
+      const safe=resolveGroundPosition(target.group.position.x+9,target.group.position.z+9,.8,obstacles(target.id),buildingsNow());
       occupant.group.position.set(safe.x,0,safe.z);
       occupant.group.visible=occupant.health>0;
     }
@@ -733,7 +767,7 @@ function botUpdate(e,dt){
     // mas o objetivo é deslocado 12 unidades para fora da carroceria.
     e.navPath=findPath({x:p.x,z:p.z},destination,{
       radius:groundRadius(e),cellSize:e.kind==="tank"?8:6,
-      obstacles:obstacles(e.id)
+      obstacles:obstacles(e.id),buildings:buildingsNow()
     });
     e.navDestination=destination;
     e.navStatus=e.navPath.length?"navegando":"sem rota";
