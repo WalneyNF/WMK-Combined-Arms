@@ -2,15 +2,27 @@
 
 **Protótipo de combate militar 3D no navegador, em português.** Helicóptero, tanque e navio, ilha procedural, combate contra inimigos, mira, radar, mísseis e missões.
 
-**Versão:** 0.2.0 · **Autor das adaptações WMK:** Walney Moreira Klein — walneyk@hotmail.com
+**Versão do jogo principal:** 0.2.1 · **Autor das adaptações WMK:** Walney Moreira Klein — walneyk@hotmail.com
 
-## 🎮 WMK Unit Control Lab v0.3.7 (experimental)
+## 🛠 Correções do jogo principal v0.2.1
+
+- **Soldado (tecla 4):** compensação de altura de 0,45 m no nascimento e durante o movimento para evitar pés enterrados na malha do terreno.
+- **AAP / artilharia autopropulsada (tecla 5):** novo modelo de lagartas/casemata, mira estratégica com **V** e mouse, disparo balístico em arco, explosão em área e recarga lenta. É uma aproximação arcade inspirada na função das AAPs, sem copiar modelos de World of Tanks.
+- **Submarino (tecla 7):** câmera submersa, spawn a 6 m de profundidade perto dos navios e torpedos que não somem ao cruzar -4 m de altitude. **Q** sobe, **E** desce e **Espaço** dispara.
+- **APC (tecla 8):** transporte blindado de pessoal com metralhadora pesada. **O embarque de soldados ainda não está implementado no jogo principal**; não é uma AAP.
+- **[Manual de testes, controles e diferenças entre APC, AAP e submarino](manuais/aap-apc-submarino.html).**
+
+> Os ajustes passaram em verificações automatizadas de sintaxe e regressão. A jogabilidade precisa de testes visuais adicionais no navegador.
+
+## 🎮 WMK Unit Control Lab v0.3.8 (experimental)
 
 **[Abrir laboratório](unit-control-lab.html)** · [Manual completo](manuais/unit-control-lab.html)
 
 Protótipo independente com dois soldados em terceira pessoa, tanque e helicóptero persistentes, entrada/saída com E, postos de veículo por F, disparos de treinamento, comandos básicos a bots, mapa tático M, modo de depuração e save/import/export JSON. Controles: WASD, Shift, mouse/K, E, F, R, Q/C no helicóptero, M para mapa, 1/2/3/4 para assumir unidades remotamente.
 
-> O jogo principal continua na v0.2.0 e permanece preservado. O laboratório v0.3.5 é uma experiência separada: os sistemas ainda não estão integrados ao index.html. Bots possuem navegação A* e combate arcade básico, sem IA estratégica avançada; há colisões simplificadas com construções e veículos terrestres; ainda não há animação física de tripulantes, física realista, multiplayer nem modelos GLB.
+> O jogo principal está na v0.2.1 e o laboratório v0.3.8 é uma experiência separada: os sistemas ainda não estão integrados ao index.html. Bots possuem navegação A* e combate arcade básico, sem IA estratégica avançada; há colisões simplificadas com construções e veículos terrestres; ainda não há animação física de tripulantes, física realista, multiplayer nem modelos GLB.
+
+**Novidades v0.3.8 (laboratório):** editor [WMK Map Builder 3D](map-builder-3d.html) com gizmos para selecionar, mover, girar e escalar construções e salvar o cenário no JSON do Mission Studio; rotas de patrulha por waypoints para bots no mapa, com validação e testes unitários. Recursos experimentais: dependem de Three.js e do navegador.
 
 **Novidades v0.3.7:** o [WMK Mission Studio](mission-editor.html) ganhou **modo Construções**. Insira edificações, muros, torres, caixas e barreiras, selecione no mapa, ajuste X/Y/Z, rotação, largura, altura, profundidade e colisão. Duplique, exclua e exporte no mesmo JSON da missão. Ao testar, o laboratório cria geometria 3D correspondente e considera os obstáculos no movimento terrestre, na navegação A* e na linha de visão. A colisão usa footprint retangular conservador, não malha física exata. Código `src/lab/scenery.mjs`, testes `tests/scenery.test.mjs`.
 
@@ -32,7 +44,7 @@ Abra [WMK World Studio Beta](studio.html) no servidor HTTP. Crie objetos primiti
 
 ## 📦 ZIP completo de testes
 
-O GitHub Actions gera automaticamente **WMK-Combined-Arms-v0.3.7.zip** após executar as verificações. Acesse [Actions](https://github.com/WalneyNF/WMK-Combined-Arms/actions), abra a execução mais recente concluída e baixe o artefato `WMK-Combined-Arms-v0.3.7-ZIP`. Alternativamente, o [ZIP direto do branch main](https://github.com/WalneyNF/WMK-Combined-Arms/archive/refs/heads/main.zip) contém o projeto integral atualizado.
+O GitHub Actions gera automaticamente **WMK-Combined-Arms-Game-v0.2.1-Lab-v0.3.8.zip** após executar as verificações. Acesse [Actions](https://github.com/WalneyNF/WMK-Combined-Arms/actions), abra a execução mais recente concluída e baixe o artefato `WMK-Combined-Arms-Game-v0.2.1-Lab-v0.3.8-ZIP`. Alternativamente, o [ZIP direto do branch main](https://github.com/WalneyNF/WMK-Combined-Arms/archive/refs/heads/main.zip) contém o projeto integral atualizado.
 
 ## ▶️ Jogar
 
